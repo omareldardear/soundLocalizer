@@ -1,0 +1,78 @@
+<application>
+
+    <!-- ======== GENERAL INFO ======== -->
+
+    <name>soundLocalizerExp</name>
+    <description>App to run sound localizer experiment</description>
+    <version>2.0</version>
+
+    <authors>
+        <author email="jonas.gonzalez@iit.it"> Jonas Gonzalez </author>
+    </authors>
+
+    <!-- ======== MODULES ======== -->
+    <module>
+        <name>soundLocalizer</name>
+        <parameters></parameters>
+        <node>icub14</node>
+    </module>
+
+
+
+    <!-- ======== Data log ======== -->
+    <module>
+        <name>yarpdatadumper</name>
+        <parameters>--name /logAngles</parameters>
+        <node>icub16</node>
+    </module>
+
+
+    <!-- ======== Visualization ======== -->
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /soundView</parameters>
+        <node>icub16</node>
+    </module>
+
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /facesView</parameters>
+        <node>icub16</node>
+    </module>
+
+    <!-- ======== CONNECTIONS ======== -->
+
+    <!-- Cameras connections -->
+    <connection>
+        <from>/icub/cam/left/out</from>
+        <to>/ObjectsDetector/image:i</to>
+        <protocol>udp</protocol>
+    </connection>
+
+    <connection>
+        <from>/ObjectsDetector/image:o</from>
+        <to>/facesView</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+    <connection>
+        <from>/ObjectsDetector/names:o</from>
+        <to>/soundLocalizer/faceCoordinate:i</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+    <connection>
+        <from>/soundLocalizer/image:o</from>
+        <to>/soundView</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+    <connection>
+        <from></from>
+        <to>/soundLocalizer/angle:i</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+
+
+</application>

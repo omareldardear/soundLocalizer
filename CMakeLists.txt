@@ -61,3 +61,5 @@ ENDIF (folder_source)
 
 add_subdirectory("app")
 icubcontrib_add_uninstall_target()
+
+add_subdirectory(python-scripts)

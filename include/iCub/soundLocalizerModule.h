@@ -227,8 +227,11 @@ private :
     yarp::os::Port handlerPort;              // a port to handle messages
     yarp::os::Semaphore mutex;                  // semaphore for the respond function
     yarp::os::BufferedPort<yarp::os::Bottle> soundRecorderClientRPC;
+    yarp::os::RpcClient faceDetectorClientRpc;
+    yarp::os::Port faceCoordinatePort;
 
     yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelRgb> > outputImagePort;
+    yarp::os::BufferedPort<yarp::os::Bottle>  outputAnglePort;
     yarp::os::BufferedPort<yarp::sig::Matrix> anglePositionPort;
 
 
@@ -270,6 +273,10 @@ private :
     int ikinGazeCtrl_Startcontext{}, gaze_context{};
     yarp::dev::PolyDriver *clientGaze{};
     yarp::dev::IGazeControl *iGaze{};
-    bool enableSaccade;
+    bool enableSaccade, withFaceDetector;
+
+    bool processFace(bool enable);
+
+    void getCenterFace(const yarp::os::Bottle& coordinate, yarp::sig::Vector &pixelLoc);
 };
 #endif //SOUND_LOCALIZER_MODULE_H

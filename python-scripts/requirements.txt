@@ -1,0 +1,6 @@
+librosa
+numpy
+argparse
+soundfile
+argparse
+pyinstaller
