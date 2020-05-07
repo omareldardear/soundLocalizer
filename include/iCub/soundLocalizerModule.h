@@ -142,6 +142,7 @@
 #include <array>
 #include <opencv/cv.h>
 #include <opencv2/features2d.hpp>
+#include <yarp/os/SystemClock.h>
 
 
 
@@ -235,6 +236,16 @@ private :
     yarp::os::BufferedPort<yarp::sig::Matrix> anglePositionPort;
 
 
+    //iKinGazeCtrl parameters
+    int ikinGazeCtrl_Startcontext{}, gaze_context{};
+    yarp::dev::PolyDriver *clientGaze{};
+    yarp::dev::IGazeControl *iGaze{};
+
+    yarp::os::SystemClock timeSystem;
+    double currentTime, timeDiff;
+    bool enableAudioRecording;
+    int timeOut;
+
     /**
      * Compute if the current angle is at the left or right in allocentric reference frame
      * @param angles
@@ -269,11 +280,7 @@ private :
 
     bool openIkinGazeCtrl();
 
-    //iKinGazeCtrl parameters
-    int ikinGazeCtrl_Startcontext{}, gaze_context{};
-    yarp::dev::PolyDriver *clientGaze{};
-    yarp::dev::IGazeControl *iGaze{};
-    bool enableAudioRecording, withFaceDetector;
+
 
     bool saveAudio(bool enable);
 
