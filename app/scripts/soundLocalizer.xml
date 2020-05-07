@@ -23,6 +23,8 @@
         <node>icub14</node>
     </module>
 
+
+
     <module>
         <name>objectDetector</name>
         <parameters></parameters>
@@ -82,7 +84,7 @@
     </connection>
 
     <connection>
-        <from>/ObjectsDetector/names:o</from>
+        <from>/ObjectsDetector/objects:o</from>
         <to>/soundLocalizer/faceCoordinate:i</to>
         <protocol>tcp</protocol>
     </connection>
@@ -92,6 +94,13 @@
         <to>/soundView</to>
         <protocol>tcp</protocol>
     </connection>
+
+    <connection>
+        <from>/soundLocalizer/outputAnglePort:o</from>
+        <to>/logAngles</to>
+        <protocol>tcp</protocol>
+    </connection>
+
 
     <connection>
         <from>/audioBayesianMap/bayesianProbabilityAngle:o</from>

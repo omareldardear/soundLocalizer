@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
-set(KEYWORD audioRecorder)
+set(KEYWORD AudioRecorder)
 set(NAME_VENV ${KEYWORD}_venv)
 project($KEYWORD)
 
@@ -31,7 +31,7 @@ set(ICUB_APPLICATIONS_PREFIX "$ENV{ICUB_ROOT}" CACHE PATH "Application path pref
 # Generate the virtualenv and ensure it's up to date.
 add_custom_command(
         OUTPUT ${NAME_VENV}
-        COMMAND ${VIRTUALENV} ${NAME_VENV}
+        COMMAND ${VIRTUALENV} -p /usr/bin/python3 ${NAME_VENV}
 )
 add_custom_command(
         OUTPUT requirements
@@ -44,7 +44,7 @@ add_custom_command(
 add_custom_command(
         OUTPUT binary
         DEPENDS ${NAME_VENV} requirements
-        COMMAND ./${NAME_VENV}/bin/pyinstaller  ${CMAKE_CURRENT_SOURCE_DIR}/AudioRecorder.py --distpath bin
+        COMMAND ./${NAME_VENV}/bin/pyinstaller  ${CMAKE_CURRENT_SOURCE_DIR}/AudioRecorder.spec --distpath bin
 
 )
 

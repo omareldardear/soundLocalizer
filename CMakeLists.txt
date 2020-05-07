@@ -28,7 +28,7 @@ set(ICUB_APPLICATIONS_PREFIX "$ENV{ICUB_ROOT}" CACHE PATH "Application path pref
 
 INCLUDE_DIRECTORIES(
         ${PROJECT_SOURCE_DIR}/include
-        /home/jonas/yarp/src/libYARP_cv/include
+        /usr/local/src/robot/yarp/src/libYARP_cv/src
         ${YARP_INCLUDE_DIRS}
         ${ICUB_INCLUDE_DIRS}
         ${ICUB_CONTRIB_DIRS}
@@ -62,4 +62,4 @@ ENDIF (folder_source)
 add_subdirectory("app")
 icubcontrib_add_uninstall_target()
 
-add_subdirectory(python-scripts)
+#add_subdirectory(python-scripts)

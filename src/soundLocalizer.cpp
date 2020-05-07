@@ -72,7 +72,7 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
 
     /* get the module name which will form the stem of all module port names */
     moduleName = rf.check("name",
-                          Value("/audioAttentionDemo"),
+                          Value("/soundLocalizer"),
                           "module name (string)").asString();
     /*
     * before continuing, set the module name before getting any other parameters,
@@ -127,7 +127,6 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
     }
 
 
-
     if (!faceCoordinatePort.open(getName("/faceCoordinate:i"))) {
         yInfo("Unable to open port /faceCoordinate:i");
         return false;  // unable to open; let RFModule know so that it won't run
@@ -137,9 +136,6 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
         yInfo("Unable to open port /outputAnglePort:o");
         return false;  // unable to open; let RFModule know so that it won't run
     }
-
-
-
 
 
     width = rf.check("width",
@@ -161,9 +157,8 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
 
     }
 
-    enableSaccade = rf.check("saccade", Value(false)).asBool();
 
-    drawOnLeft = drawOnRight = false;
+    drawOnLeft = drawOnRight = enableAudioRecording = false;
 
     template_img = new cv::Mat(height, width, CV_8UC3, color_white);
 
@@ -179,11 +174,18 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
     }
 
     withFaceDetector = NetworkBase::connect(faceDetectorClientRpc.getName(), "/ObjectsDetector");
+    enableAudioRecording = NetworkBase::connect(soundRecorderClientRPC.getName(), "/audioRecorder/rpc:i");
+
     if (!withFaceDetector) {
         yInfo("Unable to connect to /ObjectsDetector check that ObjectsDetector is running");
     }
 
-    yInfo("Running with face detector %d", withFaceDetector);
+
+    if (!enableAudioRecording) {
+        yInfo("Unable to connect to /audioRecorder check that AudioRecorder is running");
+    }
+
+    yInfo("Running with face detector %d and audio recorder %d", withFaceDetector, enableAudioRecording);
 
     return true;       // let the RFModule know everything went well
     // so that it will then run the module
@@ -223,12 +225,14 @@ bool soundLocalizerModule::updateModule() {
     yarp::sig::Matrix *inputBottle = anglePositionPort.read(false);
 
     if (inputBottle != nullptr) {
+        if (enableAudioRecording) {
+            saveAudio(true);
+        }
 
         const int res_angle = computePositionAngle(*inputBottle);
 
         if (res_angle > -1 && process) {
 
-            yInfo("Found valid angle %d ", res_angle);
             process = false;
 
             if (!lookAngle(res_angle)) {
@@ -238,34 +242,51 @@ bool soundLocalizerModule::updateModule() {
 
             if (withFaceDetector && faceCoordinatePort.getInputCount()) {
 
+                yarp::os::Bottle *coordinate_face = faceCoordinatePort.read(false);
 
-                    yarp::os::Bottle coordinate_face;
-                    faceCoordinatePort.read(coordinate_face);
-                    yarp::os::Bottle *bottle_coord = coordinate_face.get(0).asList();
-                    bottle_coord = bottle_coord->get(2).asList();
-                    yarp::sig::Vector px(2);   // specify the pixel where to look
+                while (coordinate_face == nullptr) {
+                    coordinate_face = faceCoordinatePort.read(false);
 
-                    getCenterFace(*bottle_coord,px);
-                    // param 1 select the image plane: 0 (left), 1 (right)
-                    // param 3 distance in meter
-                    this->iGaze->lookAtMonoPixel(0,px, 1.5);    // look!
-                    this->iGaze->waitMotionDone();
+                }
 
-                    yarp::sig::Vector fixationAngles;
-                    this->iGaze->getAngles(fixationAngles);
+                // Read the face coordinate returned by the face detector module
+                yarp::os::Bottle *bottle_coord = coordinate_face->get(0).asList();
+                bottle_coord = bottle_coord->get(2).asList();
+                yarp::sig::Vector px(2);   // specify the pixel where to look
 
-                    if( outputAnglePort.getOutputCount()){
-                        yarp::os::Bottle& soundAngle = outputAnglePort.prepare();
-                        soundAngle.clear();
-                        soundAngle.addDouble(fixationAngles[0]);
-                        soundAngle.addDouble(fixationAngles[1]);
-                        soundAngle.addDouble(fixationAngles[2]);
-                        outputAnglePort.write();
+                // Compute the center of the face in the image reference frame and gaze at it
+                getCenterFace(*bottle_coord, px);
+                // param 1 select the image plane: 0 (left), 1 (right)
+                // param 3 distance in meter
+                this->iGaze->lookAtMonoPixel(0, px, 1.5);    // look!
+                this->iGaze->waitMotionDone(0.1, 1);
+
+                yInfo("Gazing at face");
 
 
-                    }
-                    
-                    process = true;
+                // Get the current fixation of the robot point in angles and send it
+                yarp::sig::Vector fixationAngles;
+                this->iGaze->getAngles(fixationAngles);
+
+                if (outputAnglePort.getOutputCount()) {
+                    yarp::os::Bottle &soundAngle = outputAnglePort.prepare();
+                    soundAngle.clear();
+                    soundAngle.addDouble(fixationAngles[0]);
+                    soundAngle.addDouble(fixationAngles[1]);
+                    soundAngle.addDouble(fixationAngles[2]);
+                    outputAnglePort.write();
+
+
+                }
+
+                if (enableAudioRecording) {
+                    saveAudio(false);
+                    saveAudio(true);
+
+                }
+
+
+                process = true;
 
 
             } else { process = true; }
@@ -465,14 +486,16 @@ int soundLocalizerModule::computePositionAngle(yarp::sig::Matrix angle_matrix) {
             angle = maxIndex;
         }
     }
-
-    if (maxSaliency <= lowProbabilityThreshold && !process) {
-        process = true;
-    }
+//
+//    if (maxSaliency <= lowProbabilityThreshold && !process) {
+//        process = true;
+//    }
 
     if (maxSaliency < highProbabilityThreshold) return -1;
 
     else {
+        yDebug("Found valid angle %d with saliency ", angle, maxSaliency);
+
         return angle;
     }
 }
@@ -484,36 +507,35 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     // Right source
     if (angle >= 90 && angle < 144) {
 
-        ang[0]=+50.0;                   // azimuth-component [deg]
-        ang[1]=+15.0;                   // elevation-component [deg]
-        ang[2]=+0.5;                   // vergence-component [deg]
+        ang[0] = +50.0;                   // azimuth-component [deg]
+        ang[1] = +5.0;                   // elevation-component [deg]
+        ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = true;
         drawOnLeft = false;
     }
 
-    // Center source
-    else if(angle > 144 && angle < 200){
-        ang[0]=0.0;                   // azimuth-component [deg]
-        ang[1]=+15.0;                   // elevation-component [deg]
-        ang[2]=0.5;                   // vergence-component [deg]
+        // Center source
+    else if (angle > 144 && angle < 200) {
+        ang[0] = 0.0;                   // azimuth-component [deg]
+        ang[1] = +5.0;                   // elevation-component [deg]
+        ang[2] = 0.5;                   // vergence-component [deg]
         drawOnRight = false;
         drawOnLeft = false;
     }
 
-    // Left source
-    else if(angle > 200 && angle < 270){
-        ang[0]=-50.0;                   // azimuth-component [deg]
-        ang[1]=+10.0;                   // elevation-component [deg]
-        ang[2]=+0.5;                   // vergence-component [deg]
+        // Left source
+    else if (angle > 200 && angle < 270) {
+        ang[0] = -50.0;                   // azimuth-component [deg]
+        ang[1] = +5.0;                   // elevation-component [deg]
+        ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = false;
         drawOnLeft = true;
-    } else{
+    } else {
         return false;
     }
 
     this->iGaze->lookAtAbsAngles(ang);
-    this->iGaze->waitMotionDone();
-
+    this->iGaze->waitMotionDone(0.1,0.4);
 
 
     return true;
@@ -634,10 +656,10 @@ bool soundLocalizerModule::openIkinGazeCtrl() {
     iGaze->storeContext(&ikinGazeCtrl_Startcontext);
 
 
-    iGaze->setSaccadesMode(this->enableSaccade);
     //Set trajectory time:
     iGaze->blockNeckRoll(0.0);
     iGaze->clearNeckPitch();
+//    iGaze->blockEyes();
 
 //    iGaze->setNeckTrajTime(0.5);
 //    iGaze->setEyesTrajTime(0.2);
@@ -645,27 +667,26 @@ bool soundLocalizerModule::openIkinGazeCtrl() {
 //    iGaze->setVORGain(1.3);
 //    iGaze->setOCRGain(0.7);
 
-    iGaze->storeContext(&gaze_context);
+//    iGaze->storeContext(&gaze_context);
 
     yInfo("Initialization of iKingazeCtrl completed");
     return true;
 }
 
-bool soundLocalizerModule::processFace(bool enable) {
+bool soundLocalizerModule::saveAudio(bool enable) {
     yarp::os::Bottle cmd, reply;
-    cmd.addString("process");
-    std::string process_state = enable ? "on" : "off";
+    std::string process_state = enable ? "start" : "stop";
 
     cmd.addString(process_state);
-    faceDetectorClientRpc.write(cmd,reply);
+    soundRecorderClientRPC.write(cmd, reply);
 
     return reply.get(0).asString() == "ok";
 }
 
-void soundLocalizerModule::getCenterFace(const yarp::os::Bottle& coordinate, yarp::sig::Vector &pixelLoc) {
+void soundLocalizerModule::getCenterFace(const yarp::os::Bottle &coordinate, yarp::sig::Vector &pixelLoc) {
 
-    const int center_x =  coordinate.get(0).asInt()+ ((coordinate.get(2).asInt() - coordinate.get(0).asInt()) / 2);
-    const int center_y = coordinate.get(1).asInt()  + ((coordinate.get(3).asInt() - coordinate.get(1).asInt() ) /2);
+    const int center_x = coordinate.get(0).asInt() + ((coordinate.get(2).asInt() - coordinate.get(0).asInt()) / 2);
+    const int center_y = coordinate.get(1).asInt() + ((coordinate.get(3).asInt() - coordinate.get(1).asInt()) / 2);
 
     pixelLoc[0] = center_x;
     pixelLoc[1] = center_y;
