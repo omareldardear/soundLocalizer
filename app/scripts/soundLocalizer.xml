@@ -13,8 +13,20 @@
     <!-- ======== MODULES ======== -->
     <module>
         <name>soundLocalizer</name>
+        <parameters>--img_path /usr/local/src/robot/cognitiveInteraction/soundLocalizer/app</parameters>
+        <node>icub14</node>
+    </module>
+
+    <module>
+        <name>AudioRecorder</name>
         <parameters></parameters>
         <node>icub14</node>
+    </module>
+
+    <module>
+        <name>objectDetector</name>
+        <parameters></parameters>
+        <node>icub-titan</node>
     </module>
 
 
@@ -39,6 +51,20 @@
         <parameters>--name /facesView</parameters>
         <node>icub16</node>
     </module>
+
+    <module>
+        <name>frequencyVisualisation</name>
+        <parameters>--name /bayesianProbabilityAngle --grid vert --gain 100</parameters>
+        <node>icub16</node>
+    </module>
+
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /bayesianAngleView</parameters>
+        <node>icub16</node>
+    </module>
+
+
 
     <!-- ======== CONNECTIONS ======== -->
 
@@ -68,11 +94,22 @@
     </connection>
 
     <connection>
-        <from></from>
+        <from>/audioBayesianMap/bayesianProbabilityAngle:o</from>
         <to>/soundLocalizer/angle:i</to>
         <protocol>tcp</protocol>
     </connection>
 
+    <connection>
+        <from>/audioBayesianMap/bayesianProbabilityAngle:o</from>
+        <to>/bayesianProbabilityAngle/map:i</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+    <connection>
+        <from>/bayesianProbabilityAngle/img:o</from>
+        <to>/bayesianAngleView</to>
+        <protocol>tcp</protocol>
+    </connection>
 
 
 </application>
