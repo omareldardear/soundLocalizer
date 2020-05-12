@@ -282,7 +282,7 @@ private :
 
 
 
-    bool saveAudio(bool enable);
+    bool saveAudio(std::string cmd);
 
     void getCenterFace(const yarp::os::Bottle& coordinate, yarp::sig::Vector &pixelLoc);
 };

@@ -40,6 +40,12 @@
         <node>icub16</node>
     </module>
 
+    <module>
+        <name>yarpdatadumper</name>
+        <parameters>--name /logHeadState</parameters>
+        <node>icub16</node>
+    </module>
+
 
     <!-- ======== Visualization ======== -->
     <module>
@@ -96,8 +102,8 @@
     </connection>
 
     <connection>
-        <from>/soundLocalizer/outputAnglePort:o</from>
-        <to>/logAngles</to>
+        <from>/soundLocalizer/soundRecorderCmd:o</from>
+        <to>/audioRecorder</to>
         <protocol>tcp</protocol>
     </connection>
 
@@ -117,6 +123,24 @@
     <connection>
         <from>/bayesianProbabilityAngle/img:o</from>
         <to>/bayesianAngleView</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+    <connection>
+        <from>/rawAudio:o</from>
+        <to>/audioRecorder/recorder:i</to>
+        <protocol>udp</protocol>
+    </connection>
+
+    <connection>
+        <from>/soundLocalizer/outputAnglePort:o</from>
+        <to>/logAngles</to>
+        <protocol>tcp</protocol>
+    </connection>
+
+    <connection>
+        <from>/icub/head/state:o</from>
+        <to>/logHeadState</to>
         <protocol>tcp</protocol>
     </connection>
 

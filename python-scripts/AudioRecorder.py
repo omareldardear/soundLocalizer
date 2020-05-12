@@ -2,117 +2,137 @@ import threading
 
 import librosa
 
+import sys
 import os
 import time
 import yarp
 import numpy as np
 import soundfile as sf
-import argparse
 
-# Init Yarp.
-yarp.Network.init()
+yarpLog = yarp.Log()
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description='rpc test')
-    parser.add_argument('-n', '--name', default="/audioRecorder", help='Name for the module. (default: audioRecorder)')
-    parser.add_argument('-s', '--save',    default='/tmp', help='dest dir')
-    parser.add_argument('-f', '--num_frames', default=40, help='number of frames')
-    parser.add_argument('-i', '--raw_audio_port', default="/rawAudio:o", help='input audio port')
+class ObjectDetectorModule(yarp.RFModule):
+    """
+    Description:
+        Object to read yarp image and localise and recognize objects
 
+    Args:
+        input_port  : input port of image
+        output_port : output port for streaming recognized names
+        display_port: output port for image with recognized objects in bouding box
+        raw_output : output the list of <bounding_box, label, probability> detected objects
+    """
 
-    args = parser.parse_args()
-    return args
+    def __init__(self):
+        yarp.RFModule.__init__(self)
 
+        # handle port for the RFModule
+        self.handle_port = yarp.Port()
+        self.attach(self.handle_port)
 
-class AudioRecorder(object):
-    def __init__(self, args):
-
-        # Init the Yarp Port.
-        self.port_name = args.name
-
-        self.input_port = yarp.RpcServer()
-        self.input_port.open(self.port_name + "/rpc:i")
-
-        self.target_dir = args.save
-
+        # Define vars to receive an image
         self.audio_in_port = yarp.Port()
-        self.audio_in_port.open(self.port_name + "/recorder")
 
-        yarp.Network.connect(args.raw_audio_port, self.port_name + "/recorder")
+        self.module_name = None
+
+        self.saving_path = None
 
         self.sound = yarp.Sound()
 
         self.count = 0
         self.date_path = time.strftime("%Y%m%d-%H%M%S")
-        self.num_frames = args.num_frames
+
         self.audio = []
 
-        if not os.path.exists(f'{self.target_dir}/{self.date_path}'):
-            os.makedirs(f'{self.target_dir}/{self.date_path}')
+        self.record = False
 
-    def run(self):
+        self.np_audio = None
 
-        # Initialize yarp containers
-        command = yarp.Bottle()
-        reply = yarp.Bottle()
+    def configure(self, rf):
+        self.module_name = rf.check("name",
+                                    yarp.Value("audioRecorder"),
+                                    "module name (string)").asString()
 
-        # Loop until told to quit.
-        while True:
-            self.input_port.read(command, True)
-            reply.clear()
+        self.saving_path = rf.check("path",
+                                    yarp.Value("/tmp"),
+                                    "saving path name (string)").asString()
 
-            cmd = command.get(0).asString()
-            len = command.size()
+        # Create handle port to read message
+        self.handle_port.open('/' + self.module_name)
 
-            # Kill this script.
-            if cmd == "quit" or cmd == "--quit" or cmd == "-q" or cmd == "-Q":
-                reply.addString("Good Bye!")
-                # self.input_port.reply(reply) # Don't return yet.
-                # return
+        # Create a port to receive an audio object
+        self.audio_in_port.open('/' + self.module_name + '/recorder:i')
 
-            # Get a help Message.
-            elif cmd == "help" or cmd == "--help" or cmd == "-h" or cmd == "-H":
-                reply.addString(  # Please don't look at this.
-                    "Commands: start, stop. ping, quit"
-                )
+        if not os.path.exists(f'{self.saving_path}/{self.date_path}'):
+            yarpLog.info("Creating directory for saving")
+            os.makedirs(f'{self.saving_path}/{self.date_path}')
 
-            # Ping the server.
-            elif cmd == "ping" or cmd == "--ping":
-                reply.addString("Oll Korrect")
+        yarpLog.info("Initialization complete")
 
-            elif cmd == "start" or cmd == "--start":
-                self.t = threading.Thread(name='child procs', target=self.start_recording)
-                print("starting thread!")
-                self.t.start()
-                print("started thread!")
+        return True
+
+    def interruptModule(self):
+        yarpLog.info("stopping the module")
+        self.audio_in_port.interrupt()
+        self.handle_port.interrupt()
+
+        return True
+
+    def close(self):
+        self.audio_in_port.close()
+        self.handle_port.close()
+
+        return True
+
+    def respond(self, command, reply):
+        ok = False
+
+        # Is the command recognized
+        rec = False
+
+        reply.clear()
+
+        if command.get(0).asString() == "quit":
+            reply.addString("quitting")
+            return False
+
+        elif command.get(0).asString() == "start":
+            if self.audio_in_port.getInputCount():
+                self.audio = []
+                self.record = True
+                yarpLog.info("starting recording!")
+
                 reply.addString("ok")
-
-            elif cmd == "stop" or cmd == "--stop":
-                self.stop_recording()
-                reply.addString(f"ok")
-
-            # Catch Unknown Commands.
-            elif len == 0:
-                continue
             else:
-                reply.addString("Unkown")
-                reply.addString("Command")
-                reply.append(command)
+                reply.addString("nack")
 
-            # Reply back on the rpc port.
-            self.input_port.reply(reply)
+        elif command.get(0).asString() == "stop":
+            yarpLog.info("stopping recording!")
 
-            # Leave loop if requested.
-            if reply.get(0).asString() == "Good Bye!":
-                return
+            self.stop_recording()
+            yarpLog.info("saved recording!")
 
-    def start_recording(self):
-        self.record = True
+            reply.addString("ok")
 
-        self.audio = []
+        elif command.get(0).asString() == "drop":
+            yarpLog.info("dropping recording!")
+            self.record = False
+            reply.addString("ok")
 
-        while self.record:
+        return True
+
+    def getPeriod(self):
+        """
+           Module refresh rate.
+
+           Returns : The period of the module in seconds.
+        """
+        return 0.05
+
+    def updateModule(self):
+
+        if self.record:
 
             self.audio_in_port.read(self.sound)
 
@@ -120,37 +140,40 @@ class AudioRecorder(object):
 
             for c in range(self.sound.getChannels()):
                 for i in range(self.sound.getSamples()):
-                    chunk[c][i] = self.sound.get(i, c)/32768.0
+                    chunk[c][i] = self.sound.get(i, c) / 32768.0
 
             self.audio.append(chunk)
+        return True
 
     def stop_recording(self):
         self.record = False
-        self.np_audio = np.concatenate(self.audio, axis=1)
-        self.np_audio = librosa.util.normalize(self.np_audio, axis=1)
 
-        print(self.np_audio.shape)
-        print(self.sound.getFrequency())
+        np_audio = np.concatenate(self.audio, axis=1)
+        np_audio = librosa.util.normalize(np_audio, axis=1)
 
-        timestamp =  time.time()
+        timestamp = time.time()
 
-        sf.write(f'{self.target_dir}/{self.date_path}/{self.count}_{timestamp}.wav', np.squeeze(self.np_audio[0,:]), self.sound.getFrequency())
+        sf.write(f'{self.saving_path}/{self.date_path}/{self.count}_{timestamp}.wav', np.squeeze(np_audio[0, :]),
+                 self.sound.getFrequency())
         self.count += 1
-
-    def cleanup(self):
-        print("Closing RPC Server.")
-        self.input_port.close()
-
-def main():
-    args = get_args()
-
-    rp = AudioRecorder(args)
-
-    try:
-        rp.run()
-    finally:
-        rp.cleanup()
 
 
 if __name__ == '__main__':
-    main()
+
+    # Initialise YARP
+    if not yarp.Network.checkNetwork():
+        print("Unable to find a yarp server exiting ...")
+        sys.exit(1)
+
+    yarp.Network.init()
+
+    objectsDetectorModule = ObjectDetectorModule()
+
+    rf = yarp.ResourceFinder()
+    rf.setVerbose(True)
+    rf.setDefaultContext('audioRecorder')
+    rf.setDefaultConfigFile('audioRecorder.ini')
+
+    if rf.configure(sys.argv):
+        objectsDetectorModule.runModule(rf)
+    sys.exit()
