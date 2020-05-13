@@ -40,7 +40,7 @@ class ObjectDetectorModule(yarp.RFModule):
 
         self.sound = yarp.Sound()
 
-        self.count = 0
+        self.start_ts = -1
         self.date_path = time.strftime("%Y%m%d-%H%M%S")
 
         self.audio = []
@@ -101,6 +101,8 @@ class ObjectDetectorModule(yarp.RFModule):
             if self.audio_in_port.getInputCount():
                 self.audio = []
                 self.record = True
+                self.start_ts = time.time()
+
                 yarpLog.info("starting recording!")
 
                 reply.addString("ok")
@@ -151,11 +153,11 @@ class ObjectDetectorModule(yarp.RFModule):
         np_audio = np.concatenate(self.audio, axis=1)
         np_audio = librosa.util.normalize(np_audio, axis=1)
 
-        timestamp = time.time()
+        stop_timestamp = time.time()
 
-        sf.write(f'{self.saving_path}/{self.date_path}/{self.count}_{timestamp}.wav', np.squeeze(np_audio[0, :]),
+        sf.write(f'{self.saving_path}/{self.date_path}/{self.start_ts}_{stop_timestamp}.wav', np.squeeze(np_audio[0, :]),
                  self.sound.getFrequency())
-        self.count += 1
+
 
 
 if __name__ == '__main__':
