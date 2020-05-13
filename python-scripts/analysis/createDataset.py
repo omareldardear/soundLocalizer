@@ -8,18 +8,6 @@ COLUMNS_JOINTS = ['index', 'timestamp', 'joint0', 'joint1', 'joint2', 'joint3', 
 COLUMNS_DATA = ['audio_filename', 'azimuth', 'elevation', 'joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5']
 
 
-def find_closest_timestamp(timestamp_ref, df_data):
-    match_index = -1
-    min_diff = 20000
-    for index, row in df_data.iterrows():
-        tmp_diff = abs(row['timestamp'] - timestamp_ref)
-        if tmp_diff < min_diff:
-            match_index = index
-            min_diff = tmp_diff
-
-    return match_index
-
-
 def main(args):
     audio_samples_list = glob.glob(os.path.join(args.audio_dir, "*.wav"))
     df_head_angles = pd.read_csv(args.head_angle_filename, sep=' ', names=COLUMNS_ANGLES)
@@ -36,10 +24,9 @@ def main(args):
     for sample in audio_samples_list:
         file_name = sample.split('/')[-1]
         stop_timestamp = file_name.split('.wav')[0].split('_')[-1]
-        timestamp = float(stop_timestamp)
 
-        index_angle = find_closest_timestamp(timestamp, df_head_angles)
-        index_joint = find_closest_timestamp(timestamp, df_head_joints)
+        index_angle = abs(df_head_angles['timestamp'] - float(stop_timestamp)).idxmin()
+        index_joint = abs(df_head_joints['timestamp'] - float(stop_timestamp)).idxmin()
 
         data_angle = df_head_angles.iloc[[index_angle], 1:3]
         data_joint = df_head_joints.iloc[[index_joint], 1:]
