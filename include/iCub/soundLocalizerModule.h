@@ -236,6 +236,11 @@ private :
     yarp::os::BufferedPort<yarp::sig::Matrix> anglePositionPort;
 
 
+    yarp::os::RpcClient clientRPCEmotion;
+
+    bool sendEmotion(std::string iCubFacePart , std::string emotionCmd);
+
+
     //iKinGazeCtrl parameters
     int ikinGazeCtrl_Startcontext{}, gaze_context{};
     yarp::dev::PolyDriver *clientGaze{};

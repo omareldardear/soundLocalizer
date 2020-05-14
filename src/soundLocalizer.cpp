@@ -60,11 +60,11 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
     }
 
     highProbabilityThreshold = rf.check("probabilityThresholdHigh",
-                                        Value(0.009),
+                                        Value(0.0058),
                                         "high probability threshold to trigger the motion (double)").asDouble();
 
     lowProbabilityThreshold = rf.check("probabilityThresholdLow",
-                                       Value(0.007),
+                                       Value(0.006),
                                        "low probability threshold to trigger the motion (double)").asDouble();
 
     process = true;
@@ -136,6 +136,16 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
         return false;  // unable to open; let RFModule know so that it won't run
     }
 
+    if (!clientRPCEmotion.open(getName("/faceExpressions/cmd:o"))){
+        yInfo("Unable to open port /faceExpressions/cmd:o");
+        return false;
+    }
+
+    if (!NetworkBase::connect(clientRPCEmotion.getName(), "/icub/face/emotions/in")) {
+        yInfo("Unable to connect to faceEmotion RPC ");
+        return false;
+    }
+
 
     width = rf.check("width",
                      Value(320),
@@ -189,6 +199,8 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
 
     currentTime = timeSystem.nowSystem();
 
+    yInfo("Initialization done");
+
     return true;       // let the RFModule know everything went well
     // so that it will then run the module
 }
@@ -199,21 +211,31 @@ bool soundLocalizerModule::close() {
     outputImagePort.close();
     faceCoordinatePort.close();
     faceDetectorClientRpc.close();
-    /* stop the thread */
-    printf("stopping the thread \n");
+    clientRPCEmotion.close();
+    soundRecorderClientRPC.close();
+    outputAnglePort.close();
 
+    /* stop the thread */
+    yInfo("Stopping the thread ");
+    saveAudio("drop");
     iGaze->restoreContext(gaze_context);
+
 
     return true;
 }
 
 bool soundLocalizerModule::interruptModule() {
+    yInfo("Interrupting the thread \n");
+
     faceCoordinatePort.interrupt();
     faceDetectorClientRpc.interrupt();
     handlerPort.interrupt();
     soundRecorderClientRPC.interrupt();
     anglePositionPort.interrupt();
     outputImagePort.interrupt();
+    clientRPCEmotion.interrupt();
+    outputAnglePort.interrupt();
+
     return true;
 }
 
@@ -394,7 +416,7 @@ bool soundLocalizerModule::updateModule() {
                  cv::Point(width / 2 - headImg.rows / 2, height / 2 - headImg.cols / 2));
 
     yarp::sig::Matrix *inputBottle = anglePositionPort.read(false);
-    yarp::os::Bottle *coordinate_face = faceCoordinatePort.read(false);
+    yarp::os::Bottle *coordinate_face;
 
     timeDiff = timeSystem.nowSystem() - currentTime;
 
@@ -402,6 +424,8 @@ bool soundLocalizerModule::updateModule() {
 
 
     if (inputBottle != nullptr && faceCoordinatePort.getInputCount()) {
+        sendEmotion("all", "neu");
+
         if(timeDiff >= timeOut && !process){
             yDebug("Reached timeout reset processing");
             process = true;
@@ -421,7 +445,7 @@ bool soundLocalizerModule::updateModule() {
             if (lookAngle(res_angle)) {
                 // flush the port
                 while(faceCoordinatePort.getPendingReads() > 0){
-                    coordinate_face = faceCoordinatePort.read(false);
+                    faceCoordinatePort.read(false);
 
                 }
                 timeSystem.delay(2);
@@ -442,6 +466,7 @@ bool soundLocalizerModule::updateModule() {
                     this->iGaze->waitMotionDone(0.1, 1);
 
                     yInfo("Gazing at face");
+                    sendEmotion("all", "hap");
                     timeSystem.delay(2);
 
 
@@ -611,7 +636,7 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     if (angle >= 90 && angle < 144) {
 
         ang[0] = +60.0;                   // azimuth-component [deg]
-        ang[1] = +15.0;                   // elevation-component [deg]
+        ang[1] = +5.0;                   // elevation-component [deg]
         ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = true;
         drawOnLeft = false;
@@ -649,6 +674,8 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     return true;
 }
 
+
+
 /****************************************************** VISUALIZATION *************************************************/
 
 void soundLocalizerModule::drawGrid(cv::Mat img, double scale, CvScalar color) {
@@ -659,7 +686,7 @@ void soundLocalizerModule::drawGrid(cv::Mat img, double scale, CvScalar color) {
     // Diagonale lines
     cv::line(img, cv::Point(img.cols / 2, 0), cv::Point(img.cols / 2, img.rows), color);
     cv::line(img, cv::Point(0, img.rows / 2), cv::Point(img.cols, img.rows / 2), color);
-    const int step = (int) (0.5 * scale); //mm
+    const auto step = (int) (0.5 * scale); //mm
 
     char buff[10];
     int rad_step = 0;
@@ -712,7 +739,7 @@ void soundLocalizerModule::overlayImage(const cv::Mat &background, const cv::Mat
                 unsigned char backgroundPx =
                         background.data[y * background.step + x * background.channels() + c];
                 output.data[y * output.step + output.channels() * x + c] =
-                        backgroundPx * (1. - opacity) + foregroundPx * opacity;
+                        static_cast<uchar>(backgroundPx * (1. - opacity) + foregroundPx * opacity);
             }
         }
     }
@@ -743,3 +770,22 @@ void soundLocalizerModule::writeImage() {
 }
 
 
+
+bool soundLocalizerModule::sendEmotion(std::string iCubFacePart, std::string emotionCmd) {
+    if (clientRPCEmotion.getOutputCount()) {
+        yarp::os::Bottle cmd;
+        cmd.addString("set");
+        cmd.addString(iCubFacePart);
+
+        cmd.addString(emotionCmd);
+
+        yarp::os::Bottle response;
+        clientRPCEmotion.write(cmd, response);
+        yDebug("Send %s face emotion get response : %s", cmd.toString().c_str(), response.toString().c_str());
+
+        return response.toString().find("[ok]") != std::string::npos;
+    }
+
+    return false;
+
+}
