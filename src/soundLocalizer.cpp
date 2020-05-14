@@ -60,11 +60,11 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
     }
 
     highProbabilityThreshold = rf.check("probabilityThresholdHigh",
-                                        Value(0.0058),
+                                        Value(0.0042),
                                         "high probability threshold to trigger the motion (double)").asDouble();
 
     lowProbabilityThreshold = rf.check("probabilityThresholdLow",
-                                       Value(0.006),
+                                       Value(0.0035),
                                        "low probability threshold to trigger the motion (double)").asDouble();
 
     process = true;
@@ -157,7 +157,7 @@ bool soundLocalizerModule::configure(yarp::os::ResourceFinder &rf) {
 
 
     const std::string images_path = rf.check("img_path",
-                                             Value(""),
+                                             Value("/usr/local/src/robot/cognitiveInteraction/soundLocalizer/app"),
                                              "Path to the images (speaker, iCubHead) (string)").asString();
 
     if (images_path.empty()) {
@@ -215,17 +215,22 @@ bool soundLocalizerModule::close() {
     soundRecorderClientRPC.close();
     outputAnglePort.close();
 
+    clientGaze->close();
+
     /* stop the thread */
     yInfo("Stopping the thread ");
-    saveAudio("drop");
-    iGaze->restoreContext(gaze_context);
 
-
+    delete template_img;
+    delete clientGaze;
     return true;
 }
 
 bool soundLocalizerModule::interruptModule() {
     yInfo("Interrupting the thread \n");
+    lookAngle(150);
+
+    saveAudio("drop");
+    iGaze->restoreContext(gaze_context);
 
     faceCoordinatePort.interrupt();
     faceDetectorClientRpc.interrupt();
@@ -235,6 +240,8 @@ bool soundLocalizerModule::interruptModule() {
     outputImagePort.interrupt();
     clientRPCEmotion.interrupt();
     outputAnglePort.interrupt();
+
+
 
     return true;
 }
@@ -409,6 +416,8 @@ bool soundLocalizerModule::respond(const yarp::os::Bottle &command, yarp::os::Bo
 
 /* Called periodically every getPeriod() seconds */
 bool soundLocalizerModule::updateModule() {
+    if(this->isStopping()){ return false;}
+
     template_img = new cv::Mat(height, width, CV_8UC3, color_white);
 
     drawGrid(*template_img, 80.0, color_blue);
@@ -635,8 +644,8 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     // Right source
     if (angle >= 90 && angle < 144) {
 
-        ang[0] = +60.0;                   // azimuth-component [deg]
-        ang[1] = +5.0;                   // elevation-component [deg]
+        ang[0] = +70.0;                   // azimuth-component [deg]
+        ang[1] = +10.0;                   // elevation-component [deg]
         ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = true;
         drawOnLeft = false;
