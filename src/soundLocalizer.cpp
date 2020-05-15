@@ -450,6 +450,7 @@ bool soundLocalizerModule::updateModule() {
         if (res_angle > -1 && process) {
 
             process = false;
+            saveAudio("stop");
 
             if (lookAngle(res_angle)) {
                 // flush the port
@@ -495,7 +496,7 @@ bool soundLocalizerModule::updateModule() {
                     }
 
                     if (soundRecorderClientRPC.getOutputCount()) {
-                        saveAudio("stop");
+                        saveAudio("save");
                         saveAudio("start");
 
                     }

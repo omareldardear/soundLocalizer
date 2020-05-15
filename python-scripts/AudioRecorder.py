@@ -49,6 +49,8 @@ class ObjectDetectorModule(yarp.RFModule):
 
         self.np_audio = None
 
+        self.stop_ts = -1
+
     def configure(self, rf):
         self.module_name = rf.check("name",
                                     yarp.Value("audioRecorder"),
@@ -111,8 +113,9 @@ class ObjectDetectorModule(yarp.RFModule):
 
         elif command.get(0).asString() == "stop":
             yarpLog.info("stopping recording!")
+            self.record = False
+            self.stop_ts = time.time()
 
-            self.stop_recording()
             yarpLog.info("saved recording!")
 
             reply.addString("ok")
@@ -120,6 +123,12 @@ class ObjectDetectorModule(yarp.RFModule):
         elif command.get(0).asString() == "drop":
             yarpLog.info("dropping recording!")
             self.record = False
+            reply.addString("ok")
+
+        elif command.get(0).asString() == "save":
+            yarpLog.info("Saving recording!")
+            self.save_recording()
+
             reply.addString("ok")
 
         return True
@@ -147,15 +156,14 @@ class ObjectDetectorModule(yarp.RFModule):
             self.audio.append(chunk)
         return True
 
-    def stop_recording(self):
+    def save_recording(self):
         self.record = False
 
         np_audio = np.concatenate(self.audio, axis=1)
         np_audio = librosa.util.normalize(np_audio, axis=1)
 
-        stop_timestamp = time.time()
 
-        sf.write(f'{self.saving_path}/{self.date_path}/{self.start_ts}_{stop_timestamp}.wav', np.squeeze(np_audio[0, :]),
+        sf.write(f'{self.saving_path}/{self.date_path}/{self.start_ts}_{stop_timestamp}.wav', np.squeeze(np_audio),
                  self.sound.getFrequency())
 
 
