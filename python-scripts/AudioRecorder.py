@@ -162,8 +162,7 @@ class ObjectDetectorModule(yarp.RFModule):
         np_audio = np.concatenate(self.audio, axis=1)
         np_audio = librosa.util.normalize(np_audio, axis=1)
 
-
-        sf.write(f'{self.saving_path}/{self.date_path}/{self.start_ts}_{stop_timestamp}.wav', np.squeeze(np_audio),
+        sf.write(f'{self.saving_path}/{self.date_path}/{self.start_ts}_{self.stop_ts}.wav', np.squeeze(np_audio),
                  self.sound.getFrequency())
 
 
