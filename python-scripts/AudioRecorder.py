@@ -116,8 +116,6 @@ class ObjectDetectorModule(yarp.RFModule):
             self.record = False
             self.stop_ts = time.time()
 
-            yarpLog.info("saved recording!")
-
             reply.addString("ok")
 
         elif command.get(0).asString() == "drop":
@@ -157,14 +155,13 @@ class ObjectDetectorModule(yarp.RFModule):
         return True
 
     def save_recording(self):
-        self.record = False
 
         np_audio = np.concatenate(self.audio, axis=1)
         np_audio = librosa.util.normalize(np_audio, axis=1)
-
-        sf.write(f'{self.saving_path}/{self.date_path}/{self.start_ts}_{self.stop_ts}.wav', np.squeeze(np_audio),
-                 self.sound.getFrequency())
-
+        filename = f'{self.saving_path}/{self.date_path}/{self.start_ts}_{self.stop_ts}.wav'
+        np_audio = np.squeeze(np_audio)
+        a = np.transpose(np_audio, (1, 0))
+        sf.write(filename, a, self.sound.getFrequency())
 
 
 if __name__ == '__main__':

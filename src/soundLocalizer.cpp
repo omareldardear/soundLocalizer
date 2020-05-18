@@ -645,8 +645,8 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     // Right source
     if (angle >= 90 && angle < 144) {
 
-        ang[0] = +70.0;                   // azimuth-component [deg]
-        ang[1] = +10.0;                   // elevation-component [deg]
+        ang[0] = +60.0;                   // azimuth-component [deg]
+        ang[1] = +3.0;                   // elevation-component [deg]
         ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = true;
         drawOnLeft = false;
