@@ -70,7 +70,7 @@ def split_audio_chunks(audio_filename, size_chunks=1000):
 
 
 # see function mfcc.m from Slaneys Auditory Toolbox (Matlab)
-def ToolGammatoneFb(afAudioData, f_s, iNumBands=20, f_low=100):
+def ToolGammatoneFb(afAudioData, f_s, iNumBands=56, f_low=100):
 
     # initialization
     fEarQ = 9.26449

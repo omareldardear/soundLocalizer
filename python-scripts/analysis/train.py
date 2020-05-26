@@ -7,17 +7,17 @@ from scipy import signal
 
 BATCH_SIZE = 8
 EPOCHS = 200
-RESAMPLING_F = 16000
+RESAMPLING_F = 4096
 INIT_LR = 1e-3
-
+PATH_DATASET = "/usr/local/src/robot/cognitiveInteraction/soundLocalizer/python-scripts/analysis/output_dataset.csv"
 
 def sound_location_generator():
-    df_dataset = pd.read_csv("/home/jonas/CLionProjects/soundLocalizer/python-scripts/analysis/output_dataset.csv")
-
+    df_dataset = pd.read_csv(PATH_DATASET)
+    labels = tf.keras.utils.to_categorical(df_dataset['labels'])
     i = 0
     for index, item in df_dataset.iterrows():
         audio_filename = item['audio_filename']
-        azimuth_location = item['labels']
+        azimuth_location = labels[i]
 
         fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename)
 
@@ -31,9 +31,10 @@ def sound_location_generator():
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
             input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
-            yield input, azimuth_location
 
-            i += 1
+            yield input, np.squeeze(azimuth_location)
+
+        i += 1
 
 
 def sound_location_format(df_dataset):
@@ -48,8 +49,8 @@ def sound_location_format(df_dataset):
         fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename)
 
         for signal1, signal2 in zip(chunks_channel1, chunks_channel2):
-            signal1 = signal.resample(np.array(signal1, dtype=float), RESAMPLING_F)
-            signal2 = signal.resample(np.array(signal2, dtype=float), RESAMPLING_F)
+            signal1 = signal.resample(np.array(signal1), RESAMPLING_F)
+            signal2 = signal.resample(np.array(signal2), RESAMPLING_F)
 
             gamma_sig1 = ToolGammatoneFb(signal1, RESAMPLING_F)
             gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F)
@@ -95,6 +96,8 @@ def get_model(output_shape):
 
 def main(df):
     output_shape = df['labels'].max() + 1
+
+
     X, y = sound_location_format(df)
     y = tf.keras.utils.to_categorical(y)
 
@@ -104,7 +107,14 @@ def main(df):
     ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(len(X)).batch(BATCH_SIZE)
     ds_val = tf.data.Dataset.from_tensor_slices((X_val, y_val)).shuffle(len(X)).batch(BATCH_SIZE)
 
-    N_TRAIN = len(X_train)
+    # ds = tf.data.Dataset.from_generator(
+    #  sound_location_generator,
+    #  (tf.float32, tf.int64),
+    #  (tf.TensorShape([20, RESAMPLING_F, 2]), (output_shape))).shuffle(717).batch(BATCH_SIZE)
+
+    print("TEST " + str(ds.take(1)))
+
+    N_TRAIN = 717
     STEPS_PER_EPOCH = N_TRAIN // BATCH_SIZE
 
     model = get_model(output_shape=output_shape)
@@ -119,8 +129,8 @@ def main(df):
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
-    print(f'Training with {len(X_train)} datapoints')
-    print(f'Validation  with {len(X_val)} datapoints')
+    # print(f'Training with {len(X_train)} datapoints')
+    # print(f'Validation  with {len(X_val)} datapoints')
 
     model.fit(ds, epochs=EPOCHS, callbacks=get_callbacks(), validation_data=ds_val)
 
@@ -134,7 +144,7 @@ def main(df):
 
 
 if __name__ == '__main__':
-    df = pd.read_csv('/home/jonas/CLionProjects/soundLocalizer/python-scripts/analysis/output_dataset.csv')
+    df = pd.read_csv(PATH_DATASET)
     #
     # test_filename = df.iloc[0]['audio_filename']
     # fs, sig1, sig2 = split_audio_chunks(test_filename)
