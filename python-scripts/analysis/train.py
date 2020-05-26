@@ -1,15 +1,10 @@
 import pandas as pd
-from utils import gcc_phat, split_audio_chunks, concat_fourier_transform, ToolGammatoneFb
+from utils import split_audio_chunks, ToolGammatoneFb
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import numpy as np
 from scipy import signal
-
-BATCH_SIZE = 8
-EPOCHS = 200
-RESAMPLING_F = 4096
-INIT_LR = 1e-3
-PATH_DATASET = "/usr/local/src/robot/cognitiveInteraction/soundLocalizer/python-scripts/analysis/output_dataset.csv"
+from CONFIG import *
 
 def sound_location_generator():
     df_dataset = pd.read_csv(PATH_DATASET)
@@ -26,8 +21,8 @@ def sound_location_generator():
             signal1 = signal.resample(np.array(signal1, dtype=float), RESAMPLING_F)
             signal2 = signal.resample(np.array(signal2, dtype=float), RESAMPLING_F)
 
-            gamma_sig1 = ToolGammatoneFb(signal1, RESAMPLING_F)
-            gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F)
+            gamma_sig1 = ToolGammatoneFb(signal1, iNumBands=NUM_BANDS, RESAMPLING_F)
+            gamma_sig2 = ToolGammatoneFb(signal2, iNumBands=NUM_BANDS, RESAMPLING_F)
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
             input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
@@ -52,8 +47,8 @@ def sound_location_format(df_dataset):
             signal1 = signal.resample(np.array(signal1), RESAMPLING_F)
             signal2 = signal.resample(np.array(signal2), RESAMPLING_F)
 
-            gamma_sig1 = ToolGammatoneFb(signal1, RESAMPLING_F)
-            gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F)
+            gamma_sig1 = ToolGammatoneFb(signal1, iNumBands=NUM_BANDS, RESAMPLING_F)
+            gamma_sig2 = ToolGammatoneFb(signal2, iNumBands=NUM_BANDS, RESAMPLING_F)
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
             input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
@@ -112,7 +107,6 @@ def main(df):
     #  (tf.float32, tf.int64),
     #  (tf.TensorShape([20, RESAMPLING_F, 2]), (output_shape))).shuffle(717).batch(BATCH_SIZE)
 
-    print("TEST " + str(ds.take(1)))
 
     N_TRAIN = 717
     STEPS_PER_EPOCH = N_TRAIN // BATCH_SIZE
@@ -129,8 +123,8 @@ def main(df):
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
-    # print(f'Training with {len(X_train)} datapoints')
-    # print(f'Validation  with {len(X_val)} datapoints')
+    print(f'Training with {len(X_train)} datapoints')
+    print(f'Validation  with {len(X_val)} datapoints')
 
     model.fit(ds, epochs=EPOCHS, callbacks=get_callbacks(), validation_data=ds_val)
 
@@ -145,13 +139,4 @@ def main(df):
 
 if __name__ == '__main__':
     df = pd.read_csv(PATH_DATASET)
-    #
-    # test_filename = df.iloc[0]['audio_filename']
-    # fs, sig1, sig2 = split_audio_chunks(test_filename)
-    #
-    # cc = gcc_phat(sig1[1], sig2[1])
-    #
-    # plt.plot(cc)
-    # plt.show()
-
     main(df)
