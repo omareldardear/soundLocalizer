@@ -1,9 +1,10 @@
 import scipy.io.wavfile as wavfile
 import numpy as np
 from scipy.signal import lfilter
+import tensorflow as tf
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=16):
+def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=26):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -30,7 +31,7 @@ def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=16):
 
     tau = shift / float(interp * fs)
 
-    return tau, cc
+    return  cc
 
 def concat_fourier_transform(sig1, sig2, n=512):
 
@@ -159,3 +160,64 @@ def getCoeffs(f_c, B, T):
         afCoeffA[3, :, k] = [B0, B1[k], B2[k]]
 
     return (afCoeffB, afCoeffA)
+
+
+def get_model_cnn(output_shape):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Conv2D(filters=50, kernel_size=(7, 2), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 1)),
+
+        tf.keras.layers.Conv2D(filters=60, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((1, 1)),
+
+        tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((1, 1)),
+        tf.keras.layers.Dropout(0.5),
+
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(50, activation="relu"),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(output_shape, activation="softmax")
+    ])
+
+    return model
+
+
+def get_model_cnn(output_shape):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Conv2D(filters=50, kernel_size=(7, 2), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 1)),
+
+        tf.keras.layers.Conv2D(filters=60, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((1, 1)),
+
+        tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((1, 1)),
+        tf.keras.layers.Dropout(0.5),
+
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(50, activation="relu"),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(output_shape, activation="softmax")
+    ])
+
+    return model
+
+
+def get_model_dense(output_shape):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Dense(1000, activation="relu"),
+        tf.keras.layers.Dense(2000, activation="relu"),
+        tf.keras.layers.Dense(100, activation="relu"),
+        tf.keras.layers.Dense(150, activation="relu"),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(output_shape, activation="softmax")
+    ])
+
+    return model

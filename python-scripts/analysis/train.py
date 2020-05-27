@@ -1,5 +1,5 @@
 import pandas as pd
-from utils import split_audio_chunks, ToolGammatoneFb
+from utils import split_audio_chunks, ToolGammatoneFb, gcc_phat, get_model_cnn, get_model_dense
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -14,19 +14,23 @@ def sound_location_generator():
         audio_filename = item['audio_filename']
         azimuth_location = labels[i]
 
-        fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename)
+        fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=LENGTH_AUDIO)
 
         for signal1, signal2 in zip(chunks_channel1, chunks_channel2):
             # cc = gcc_phat(signal1, signal2)
             signal1 = signal.resample(np.array(signal1, dtype=float), RESAMPLING_F)
             signal2 = signal.resample(np.array(signal2, dtype=float), RESAMPLING_F)
 
-            gamma_sig1 = ToolGammatoneFb(signal1, iNumBands=NUM_BANDS, RESAMPLING_F)
-            gamma_sig2 = ToolGammatoneFb(signal2, iNumBands=NUM_BANDS, RESAMPLING_F)
+            # gamma_sig1 = ToolGammatoneFb(signal1,  RESAMPLING_F, iNumBands=NUM_BANDS)
+            # gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F, iNumBands=NUM_BANDS)
+            # input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
+
+            
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
-            input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
-
+            
+            input = gcc_phat(signal1, signal2, RESAMPLING_F)
+            # input = np.expand_dims(input, axis=-1)
             yield input, np.squeeze(azimuth_location)
 
         i += 1
@@ -41,14 +45,14 @@ def sound_location_format(df_dataset):
         audio_filename = item['audio_filename']
         azimuth_location = item['labels']
 
-        fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename)
+        fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=LENGTH_AUDIO)
 
         for signal1, signal2 in zip(chunks_channel1, chunks_channel2):
             signal1 = signal.resample(np.array(signal1), RESAMPLING_F)
             signal2 = signal.resample(np.array(signal2), RESAMPLING_F)
 
-            gamma_sig1 = ToolGammatoneFb(signal1, iNumBands=NUM_BANDS, RESAMPLING_F)
-            gamma_sig2 = ToolGammatoneFb(signal2, iNumBands=NUM_BANDS, RESAMPLING_F)
+            gamma_sig1 = ToolGammatoneFb(signal1, RESAMPLING_F, iNumBands=NUM_BANDS)
+            gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F, iNumBands=NUM_BANDS)
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
             input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
@@ -65,53 +69,31 @@ def get_callbacks():
     ]
 
 
-def get_model(output_shape):
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(filters=50, kernel_size=(7, 2), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((2, 1)),
-
-        tf.keras.layers.Conv2D(filters=60, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((1, 1)),
-
-        tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((1, 1)),
-        tf.keras.layers.Dropout(0.5),
-
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(50, activation="relu"),
-        tf.keras.layers.Dropout(0.5),
-        tf.keras.layers.Dense(output_shape, activation="softmax")
-    ])
-
-    return model
 
 
 def main(df):
     output_shape = df['labels'].max() + 1
 
 
-    X, y = sound_location_format(df)
-    y = tf.keras.utils.to_categorical(y)
+    # X, y = sound_location_format(df)
+    # y = tf.keras.utils.to_categorical(y)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=35)
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.02, random_state=35)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=35)
+    # X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.02, random_state=35)
 
-    ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(len(X)).batch(BATCH_SIZE)
-    ds_val = tf.data.Dataset.from_tensor_slices((X_val, y_val)).shuffle(len(X)).batch(BATCH_SIZE)
+    # ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(len(X)).batch(BATCH_SIZE)
+    # ds_val = tf.data.Dataset.from_tensor_slices((X_val, y_val)).shuffle(len(X)).batch(BATCH_SIZE)
 
-    # ds = tf.data.Dataset.from_generator(
-    #  sound_location_generator,
-    #  (tf.float32, tf.int64),
-    #  (tf.TensorShape([20, RESAMPLING_F, 2]), (output_shape))).shuffle(717).batch(BATCH_SIZE)
+    ds = tf.data.Dataset.from_generator(
+     sound_location_generator,
+     (tf.float32, tf.int64),
+     ).shuffle(717).batch(BATCH_SIZE)
 
 
     N_TRAIN = 717
     STEPS_PER_EPOCH = N_TRAIN // BATCH_SIZE
 
-    model = get_model(output_shape=output_shape)
+    model = get_model_dense(output_shape=output_shape)
 
     lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
         INIT_LR,
@@ -123,18 +105,18 @@ def main(df):
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
-    print(f'Training with {len(X_train)} datapoints')
-    print(f'Validation  with {len(X_val)} datapoints')
+    # print(f'Training with {len(X_train)} datapoints')
+    # print(f'Validation  with {len(X_val)} datapoints')
 
-    model.fit(ds, epochs=EPOCHS, callbacks=get_callbacks(), validation_data=ds_val)
+    model.fit(ds, epochs=EPOCHS, callbacks=get_callbacks())
 
-    tf_dataset_test = tf.data.Dataset.from_tensor_slices((X_test, y_test))
-    tf_dataset_test = tf_dataset_test.batch(1)
-    res = model.evaluate(tf_dataset_test, verbose=2)
+    # tf_dataset_test = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+    # tf_dataset_test = tf_dataset_test.batch(1)
+    # res = model.evaluate(tf_dataset_test, verbose=2)
+    # print(res)
 
     model.save('data/final_model.h5')
 
-    print(res)
 
 
 if __name__ == '__main__':
