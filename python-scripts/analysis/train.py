@@ -1,5 +1,5 @@
 import pandas as pd
-from utils import split_audio_chunks, ToolGammatoneFb, gcc_phat, get_model_cnn, get_model_dense
+from utils import *
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -13,23 +13,25 @@ def sound_location_generator():
     for index, item in df_dataset.iterrows():
         audio_filename = item['audio_filename']
         azimuth_location = labels[i]
-
+        head_position_pan = item['joint2']
+        head_position_tilt = item['joint0']
+        
         fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=LENGTH_AUDIO)
 
         for signal1, signal2 in zip(chunks_channel1, chunks_channel2):
-            # cc = gcc_phat(signal1, signal2)
-            signal1 = signal.resample(np.array(signal1, dtype=float), RESAMPLING_F)
-            signal2 = signal.resample(np.array(signal2, dtype=float), RESAMPLING_F)
+            # signal1 = signal.resample(np.array(signal1), RESAMPLING_F)
+            # signal2 = signal.resample(np.array(signal2), RESAMPLING_F)
 
-            # gamma_sig1 = ToolGammatoneFb(signal1,  RESAMPLING_F, iNumBands=NUM_BANDS)
-            # gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F, iNumBands=NUM_BANDS)
-            # input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
+            gamma_sig1 = ToolGammatoneFb(signal1,  RESAMPLING_F, iNumBands=NUM_BANDS)
+            gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F, iNumBands=NUM_BANDS)
+            input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
 
             
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
             
-            input = gcc_phat(signal1, signal2, RESAMPLING_F)
+            # input = gcc_phat(signal1, signal2)
+            # input = np.concatenate((input, [head_position_pan, head_position_tilt]))
             # input = np.expand_dims(input, axis=-1)
             yield input, np.squeeze(azimuth_location)
 
@@ -93,7 +95,7 @@ def main(df):
     N_TRAIN = 717
     STEPS_PER_EPOCH = N_TRAIN // BATCH_SIZE
 
-    model = get_model_dense(output_shape=output_shape)
+    model = get_model_cnn(output_shape=output_shape)
 
     lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
         INIT_LR,
