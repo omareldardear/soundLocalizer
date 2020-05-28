@@ -24,12 +24,12 @@ def process_subject(path_subject, subject_id):
 
     df_data = pd.DataFrame()
 
-    for file_name in audio_samples_list:
+    for index, file_name in enumerate(audio_samples_list):
         tmp = file_name.split('/')[-1]
         start_timestamp = tmp.split('.wav')[0].split('_')[0]
         stop_timestamp = tmp.split('.wav')[0].split('_')[-1]
 
-        index_angle = abs(df_head_angles['timestamp'] - float(stop_timestamp)).idxmin()
+        index_angle = index
         index_joint = abs(df_head_joints['timestamp'] - float(start_timestamp)).idxmin()
 
         data_angle = df_head_angles.iloc[[index_angle], 1:3]
@@ -48,8 +48,6 @@ def process_subject(path_subject, subject_id):
     return df_data
 
 
-
-
 def main(args):
     list_subjects = os.listdir(args.data_dir)
 
@@ -60,8 +58,8 @@ def main(args):
 
     for subject in list_subjects:
         if "s" in subject:
-            print("Processing subject_id {}".format(subject))
-            df_tmp = process_subject(os.path.join(args.data_dir, subject), int(subject[1]))
+            print("Processing subject_id {}".format(subject[1:]))
+            df_tmp = process_subject(os.path.join(args.data_dir, subject), int(subject[1:]))
             df_dataset = df_dataset.append(df_tmp)
 
             print("\n**************************************************************\n")

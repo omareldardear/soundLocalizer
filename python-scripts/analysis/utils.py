@@ -33,6 +33,9 @@ def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=26):
 
     return  cc
 
+
+
+
 def concat_fourier_transform(sig1, sig2, n=512):
 
     # Generalized Cross Correlation Phase Transform
@@ -68,6 +71,7 @@ def split_audio_chunks(audio_filename, size_chunks=500):
 
 
     return fs, chunk_signal1, chunk_signal2
+
 
 
 # see function mfcc.m from Slaneys Auditory Toolbox (Matlab)
@@ -162,28 +166,6 @@ def getCoeffs(f_c, B, T):
     return (afCoeffB, afCoeffA)
 
 
-def get_model_cnn(output_shape):
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(filters=50, kernel_size=(7, 2), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((2, 1)),
-
-        tf.keras.layers.Conv2D(filters=60, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((1, 1)),
-
-        tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((1, 1)),
-        tf.keras.layers.Dropout(0.5),
-
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(50, activation="relu"),
-        tf.keras.layers.Dropout(0.5),
-        tf.keras.layers.Dense(output_shape, activation="softmax")
-    ])
-
-    return model
 
 
 def get_model_cnn(output_shape):
