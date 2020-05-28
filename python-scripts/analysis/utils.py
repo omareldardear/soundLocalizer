@@ -228,13 +228,13 @@ def get_model_1dcnn(output_shape):
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(2),
 
-        tf.keras.layers.Conv2D(filters=60, kernel_size=(3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.Conv1D(filters=60, kernel_size=(3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(3),
 
-        tf.keras.layers.Conv2D(filters=90, kernel_size=(3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.Conv1D(filters=90, kernel_size=(3), activation='relu', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D(4),
+        tf.keras.layers.MaxPooling1D(4),
         tf.keras.layers.Dropout(0.5),
 
         tf.keras.layers.Flatten(),

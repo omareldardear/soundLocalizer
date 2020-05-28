@@ -30,9 +30,9 @@ def sound_location_generator():
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
             
-            # input = gcc_phat(signal1, signal2)
-            # input = np.concatenate((input, [head_position_pan, head_position_tilt]))
-            # input = np.expand_dims(input, axis=-1)
+
+            input = gcc_phat(signal1, signal2, RESAMPLING_F)
+            input = np.expand_dims(input, axis=-1)
             yield input, np.squeeze(azimuth_location)
 
         i += 1
@@ -88,14 +88,16 @@ def main(df):
 
     ds = tf.data.Dataset.from_generator(
      sound_location_generator,
-     (tf.float32, tf.int64),
+     (tf.float32, tf.int64),((212993,1), (output_shape))
      ).shuffle(717).batch(BATCH_SIZE)
+    #print(next(iter(ds)))
 
 
     N_TRAIN = 717
     STEPS_PER_EPOCH = N_TRAIN // BATCH_SIZE
 
     model = get_model_cnn(output_shape=output_shape)
+
 
     lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
         INIT_LR,
