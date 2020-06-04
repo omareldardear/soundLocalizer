@@ -1,5 +1,6 @@
 tensorflow-gpu
 pandas
-sklearn
+soundfile
 numpy
 pandas
+webrtcvad

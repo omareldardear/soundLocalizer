@@ -1,11 +1,12 @@
 import pandas as pd
-from analysis.utils import *
+from utils import *
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
 import numpy as np
 from scipy import signal
-from analysis.CONFIG import *
-import os
+from scipy.io.wavfile import write
+import soundfile as sf
+from CONFIG import *
+import os, io
 
 random_state = 42
 
@@ -18,22 +19,23 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
         head_position_pan = item['joint2']
         head_position_tilt = item['joint0']
 
-        fs, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=LENGTH_AUDIO)
+        sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=LENGTH_AUDIO)
 
         for signal1, signal2 in zip(chunks_channel1, chunks_channel2):
-            signal1 = signal.resample(np.array(signal1), RESAMPLING_F)
-            signal2 = signal.resample(np.array(signal2), RESAMPLING_F)
+            number_of_samples = round(len(signal1) * float(RESAMPLING_F) / sample_rate)
+            signal1 = np.array(signal.resample(signal1, number_of_samples), dtype=np.float32)
+            signal2 = np.array(signal.resample(signal2, number_of_samples), dtype=np.float32)
 
             if features == 'gcc-phat':
+
                 input = gcc_phat(signal1, signal2, RESAMPLING_F)
                 input = np.concatenate((input, [head_position_pan, head_position_tilt]))
                 input = np.expand_dims(input, axis=-1)
 
             elif features == 'gammatone':
 
-                gamma_sig1 = ToolGammatoneFb(signal1, RESAMPLING_F, iNumBands=NUM_BANDS)
-                gamma_sig2 = ToolGammatoneFb(signal2, RESAMPLING_F, iNumBands=NUM_BANDS)
-                input = np.stack((gamma_sig1, gamma_sig2,), axis=2)
+                input = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
+                input = np.expand_dims(input, axis=-1)
 
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
             # input = concat_fourier_transform(signal1, signal2)
@@ -55,7 +57,7 @@ def get_callbacks():
             filepath=checkpoint_path,
             verbose=1,
             save_weights_only=True,
-            period=50)
+            period=20)
     ]
 
 
@@ -66,12 +68,12 @@ def get_generator_dataset(df, output_shape):
     df = df.drop(df_test.index)
 
     ds_train = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator(df, labels),
+        lambda: sound_location_generator(df, labels, FEATURE),
         (tf.float32, tf.int64), ((None, 1), output_shape)
-    ).shuffle(100).batch(BATCH_SIZE)
+    ).shuffle(1000).batch(BATCH_SIZE)
 
     ds_test = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator(df_test, labels),
+        lambda: sound_location_generator(df_test, labels, FEATURE),
         (tf.float32, tf.int64), ((None, 1), output_shape)
     ).shuffle(100).batch(BATCH_SIZE)
 
@@ -83,7 +85,7 @@ def main(df):
 
     ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-    model = get_model_1dcnn(output_shape=output_shape)
+    model = get_model_dense(output_shape=output_shape)
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',
@@ -93,8 +95,8 @@ def main(df):
 
     # Re-evaluate the model
     los, acc = model.evaluate(ds_test, verbose=2)
-    print("Restored model, accuracy: {:5.2f}%".format(100 * acc))
-    model.save('data/saved_model/my_model')
+    print("Test model, accuracy: {:5.2f}%".format(100 * acc))
+    model.save('/tmp/data/saved_model/my_model')
 
 
 if __name__ == '__main__':
