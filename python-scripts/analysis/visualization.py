@@ -4,6 +4,9 @@ import seaborn as sns
 import argparse
 from utils import split_audio_chunks, concat_fourier_transform
 import numpy as np
+# Import for signal processing
+from scipy.signal import hilbert, filtfilt, butter, resample, lfilter
+import scipy.io.wavfile as wavfile
 
 plt.style.use('elegant.mplstyle')
 
@@ -40,12 +43,42 @@ def show_fourrier_transform(df):
     ax.set_xlabel("Frequency in Hertz [Hz]")
     ax.set_ylabel("Amplitude")
 
+
+
+def FilteredSignal(signal, fs, cutoff):
+    B, A = butter(1, cutoff / (fs / 2), btype='low')
+    filtered_signal = filtfilt(B, A, signal, axis=0)
+    return filtered_signal
+
+
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
 def main(args):
+
+
     df = pd.read_csv(args.data_filename)
     
-    show_fourrier_transform(df)
+    test_filename = df.iloc[150]['audio_filename']
+    fs, signal = wavfile.read(test_filename)
+    filt_signal = []
+    filt_signal.append(butter_bandpass_filter(signal[:, 0], 4000, 5000, fs))
+    filt_signal.append(butter_bandpass_filter(signal[:, 1], 4000, 5000, fs))
+    wavfile.write('ref_test.wav', fs, signal)
 
-    plt.show()
+    filt_signal =  np.array(filt_signal, dtype=np.int16)
+    filt_signal = filt_signal.reshape(filt_signal.shape[1], filt_signal.shape[0])
+    wavfile.write('test.wav', fs, filt_signal)
 
 
 if __name__ == '__main__':

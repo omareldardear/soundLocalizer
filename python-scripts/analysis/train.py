@@ -8,6 +8,7 @@ import soundfile as sf
 from CONFIG import *
 import os, io
 
+
 random_state = 42
 
 
@@ -33,12 +34,24 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
                 input = np.expand_dims(input, axis=-1)
 
             elif features == 'gammatone':
-
                 input = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
-                input = np.expand_dims(input, axis=-1)
+                input = input.reshape(input.shape[1], input.shape[0])
+                # input = np.expand_dims(input, axis=-1)
 
-            # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
-            # input = concat_fourier_transform(signal1, signal2)
+
+            elif features == 'mfcc':
+                signal1 = get_MFCC(signal1, RESAMPLING_F)
+                signal2 = get_MFCC(signal2, RESAMPLING_F)
+                input = np.stack((signal1, signal2), axis=2)
+
+
+            else:
+                # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
+                # signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
+                # signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
+
+                input = np.stack((signal1, signal2), axis=-1)
+
 
             yield input, np.squeeze(azimuth_location)
 
@@ -52,7 +65,7 @@ def get_callbacks():
 
     return [
         tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2000),
-        tf.keras.callbacks.TensorBoard("/tmp/data/log"),
+        tf.keras.callbacks.TensorBoard("data/log"),
         tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_path,
             verbose=1,
@@ -69,13 +82,14 @@ def get_generator_dataset(df, output_shape):
 
     ds_train = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 1), output_shape)
-    ).shuffle(1000).batch(BATCH_SIZE)
+        (tf.float32, tf.int64), ((None, 2), output_shape)
+    ).shuffle(2000).batch(BATCH_SIZE)
+
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 1), output_shape)
-    ).shuffle(100).batch(BATCH_SIZE)
+        (tf.float32, tf.int64), ((None, 2), output_shape)
+    ).shuffle(500).batch(BATCH_SIZE)
 
     return ds_train, ds_test
 
@@ -85,7 +99,7 @@ def main(df):
 
     ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-    model = get_model_dense(output_shape=output_shape)
+    model = get_model_1dcnn(output_shape)
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',

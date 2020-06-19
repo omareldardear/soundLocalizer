@@ -7,14 +7,29 @@ import collections
 import contextlib
 import sys
 import wave
-
-import webrtcvad
+import librosa
 
 
 #########################################################################################
 # FEATURES EXTRACTIONS FUNCTIONS                                                        #
 #########################################################################################
-def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=150):
+
+
+def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
+    """
+    Use librosa to compute MFCC features from an audio array with sample rate and number_mfcc
+    :param sample:
+    :param sample_rate:
+    :param nb_mfcc_features:
+    :return: np array of MFCC features
+    """
+    mfcc_feat = librosa.feature.mfcc(sample, sr=sample_rate, n_mfcc=nb_mfcc_features)
+    mfcc_feat = np.transpose(mfcc_feat)
+    return mfcc_feat
+
+
+def gcc_phat(sig, refsig, fs=1, max_tau=0.0005, interp=250):
+
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -31,6 +46,7 @@ def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=150):
     cc = np.fft.irfft(R / np.abs(R))
 
     max_shift = int(interp * n / 2)
+
     if max_tau:
         max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
 
@@ -40,7 +56,6 @@ def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=150):
     shift = np.argmax(np.abs(cc)) - max_shift
 
     tau = shift / float(interp * fs)
-
 
     return cc
 
@@ -56,6 +71,11 @@ def concat_fourier_transform(sig1, sig2, n=512):
     stack_fft = np.vstack((np.array(fft_phase), np.array(fft_phase2)))
 
     return stack_fft
+
+
+def padarray(A, size):
+    t = size - len(A)
+    return np.pad(A, pad_width=(0, t), mode='constant')
 
 
 def split_audio_chunks(audio_filename, size_chunks=500):
@@ -76,6 +96,14 @@ def split_audio_chunks(audio_filename, size_chunks=500):
         chunk_signal2.append(signal2[index_start:index_start + length_chunk])
 
         index_start += length_chunk
+
+
+
+    pad_sig1 = padarray(signal1[index_start:], length_chunk)
+    pad_sig2 = padarray(signal2[index_start:], length_chunk)
+
+    chunk_signal1.append(pad_sig1)
+    chunk_signal2.append(pad_sig2)
 
     return fs, chunk_signal1, chunk_signal2
 
@@ -351,11 +379,23 @@ def get_model_cnn(output_shape):
         tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((1, 1)),
-        tf.keras.layers.Dropout(rate=0.5),
+        tf.keras.layers.MaxPooling2D((2, 1)),
+        #
+        # tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same',
+        #                        kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        # tf.keras.layers.BatchNormalization(),
+        # tf.keras.layers.MaxPooling2D((2, 1)),
+
+        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True)),
+
+
+        # tf.keras.layers.Reshape((-1, 60)),
+
+        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(32)),
+
 
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(50, activation="relu"),
+        tf.keras.layers.Dense(150, activation="relu"),
         tf.keras.layers.Dropout(rate=0.5),
         tf.keras.layers.Dense(output_shape, activation="softmax")
     ])
@@ -366,9 +406,13 @@ def get_model_cnn(output_shape):
 def get_model_dense(output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(50, activation="relu"),
+        tf.keras.layers.Dense(500, activation="relu"),
         tf.keras.layers.Dropout(rate=0.5),
-        tf.keras.layers.Dense(50, activation="relu"),
+        tf.keras.layers.Dense(256, activation="relu"),
+        tf.keras.layers.Dropout(rate=0.5),
+        tf.keras.layers.Dense(128, activation="relu"),
+        tf.keras.layers.Dropout(rate=0.5),
+        tf.keras.layers.Dense(64, activation="relu"),
         tf.keras.layers.Dropout(rate=0.5),
         tf.keras.layers.Dense(output_shape, activation="softmax")
     ])
@@ -378,25 +422,57 @@ def get_model_dense(output_shape):
 
 def get_model_1dcnn(output_shape):
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv1D(filters=60, kernel_size=7, activation='relu', padding='same',
+        tf.keras.layers.Conv1D(filters=32, kernel_size=7, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(2),
 
-        # tf.keras.layers.Conv1D(filters=90, kernel_size=5, activation='relu', padding='same',
-        #                        kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        # tf.keras.layers.BatchNormalization(),
-        # tf.keras.layers.MaxPooling1D(3),
+        tf.keras.layers.Conv1D(filters=64, kernel_size=7, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(2),
 
-        # tf.keras.layers.Conv1D(filters=90, kernel_size=3, activation='relu', padding='same',
-        #                        kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        # tf.keras.layers.BatchNormalization(),
-        # tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.Conv1D(filters=128, kernel_size=5, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(3),
+
 
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(100, activation="relu"),
         tf.keras.layers.Dropout(rate=0.4),
+
         tf.keras.layers.Dense(output_shape, activation="softmax")
     ])
+
+    return model
+
+
+def simple_lstm(output_dim):
+    model = tf.keras.Sequential()
+
+    # Add a LSTM layer with 128 internal units.
+
+    # model.add(tf.keras.layers.Conv1D(filters=90, kernel_size=7, activation='relu', padding='same',
+    #                            kernel_regularizer=tf.keras.regularizers.l2(0.0005)))
+    # model.add(tf.keras.layers.MaxPooling1D(2))
+
+    model.add(tf.keras.layers.Conv1D(filters=50, kernel_size=7, activation='relu', padding='same',
+                                 kernel_regularizer=tf.keras.regularizers.l2(0.0005)))
+    model.add(tf.keras.layers.MaxPooling1D(2))
+
+    model.add(tf.keras.layers.Reshape((-1, 50)))
+
+    model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True)))
+
+    model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)))
+
+    model.add(tf.keras.layers.Dense(128, activation='relu'))
+
+    # model.add(tf.keras.layers.Dense(64, activation='relu'))
+
+    model.add(tf.keras.layers.Dropout(rate=1 - 0.5))
+
+    model.add(tf.keras.layers.Dense(output_dim, activation='softmax'))
 
     return model
