@@ -9,7 +9,7 @@ from CONFIG import *
 import os, io
 
 random_state = 42
-
+max_tau = DISTANCE_MIC /  343.2
 
 def sound_location_generator(df_dataset, labels, features='gcc-phat'):
     i = 0
@@ -27,14 +27,17 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             signal2 = np.array(signal.resample(signal2, number_of_samples), dtype=np.float32)
 
             if features == 'gcc-phat':
-
-                input = gcc_phat(signal1, signal2, RESAMPLING_F)
+                window_hanning = np.hanning(number_of_samples)
+                input = gcc_phat(signal1 * window_hanning, signal2*window_hanning, RESAMPLING_F, max_tau)
+                norm = np.linalg.norm(input)
+                input = input / norm
                 input = np.concatenate((input, [head_position_pan, head_position_tilt]))
                 input = np.expand_dims(input, axis=-1)
 
             elif features == 'gammatone':
+                window_hanning = np.hanning(number_of_samples)
 
-                input = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
+                input = gcc_gammatoneFilter(signal1 * window_hanning, signal2*window_hanning, RESAMPLING_F, NUM_BANDS)
                 input = np.expand_dims(input, axis=-1)
 
             # input = np.vstack((signal.resample(np.array(signal1, dtype=float), 6000), signal.resample(np.array(signal2, dtype=float), 6000)))
@@ -69,12 +72,12 @@ def get_generator_dataset(df, output_shape):
 
     ds_train = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 1), output_shape)
+        (tf.float32, tf.int64), (( None, 1), output_shape)
     ).shuffle(1000).batch(BATCH_SIZE)
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 1), output_shape)
+        (tf.float32, tf.int64), (( None, 1), output_shape)
     ).shuffle(100).batch(BATCH_SIZE)
 
     return ds_train, ds_test
@@ -85,7 +88,7 @@ def main(df):
 
     ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-    model = get_model_dense(output_shape=output_shape)
+    model = get_model_1dcnn(output_shape=output_shape)
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',

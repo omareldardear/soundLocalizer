@@ -14,7 +14,7 @@ import webrtcvad
 #########################################################################################
 # FEATURES EXTRACTIONS FUNCTIONS                                                        #
 #########################################################################################
-def gcc_phat(sig, refsig, fs=1, max_tau=None, interp=150):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=50):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -192,7 +192,6 @@ def getCoeffs(f_c, B, T):
 # VOICE ACTIVITY DETECTION FUNCTIONS                                                    #
 #########################################################################################
 
-
 def filter_voice(audio_chunks, sample_rate):
     voice_segments = []
 
@@ -339,17 +338,17 @@ def vad_collector(sample_rate, frame_duration_ms,
 def get_model_cnn(output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Conv2D(filters=50, kernel_size=(7, 2), activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling2D((2, 1)),
 
         tf.keras.layers.Conv2D(filters=60, kernel_size=(3, 3), activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling2D((1, 1)),
 
         tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling2D((1, 1)),
         tf.keras.layers.Dropout(rate=0.5),
@@ -366,7 +365,7 @@ def get_model_cnn(output_shape):
 def get_model_dense(output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(50, activation="relu"),
+        tf.keras.layers.Dense(100, activation="relu"),
         tf.keras.layers.Dropout(rate=0.5),
         tf.keras.layers.Dense(50, activation="relu"),
         tf.keras.layers.Dropout(rate=0.5),
@@ -379,14 +378,15 @@ def get_model_dense(output_shape):
 def get_model_1dcnn(output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Conv1D(filters=60, kernel_size=7, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.01)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(2),
 
-        # tf.keras.layers.Conv1D(filters=90, kernel_size=5, activation='relu', padding='same',
-        #                        kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        # tf.keras.layers.BatchNormalization(),
-        # tf.keras.layers.MaxPooling1D(3),
+        tf.keras.layers.Conv1D(filters=90, kernel_size=5, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.01)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(3),
+        tf.keras.layers.Dropout(rate=0.4),
 
         # tf.keras.layers.Conv1D(filters=90, kernel_size=3, activation='relu', padding='same',
         #                        kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
