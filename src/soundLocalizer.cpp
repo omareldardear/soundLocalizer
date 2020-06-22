@@ -501,7 +501,7 @@ bool soundLocalizerModule::updateModule() {
 
                     }
                     process=true;
-                    timeSystem.delay(3);
+                    timeSystem.delay(2);
 
                 }
 
@@ -559,7 +559,7 @@ bool soundLocalizerModule::openIkinGazeCtrl() {
     //Set trajectory time:
     iGaze->blockNeckRoll(0.0);
     iGaze->clearNeckPitch();
-    iGaze->blockEyes(0.0);
+//    iGaze->blockEyes(0.0);
 
 //    iGaze->setNeckTrajTime(0.5);
 //    iGaze->setEyesTrajTime(0.2);
@@ -643,28 +643,28 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     yarp::sig::Vector ang(3);
 
     // Right source
-    if (angle >= 90 && angle < 144) {
+    if ( angle < 144) {
 
-        ang[0] = +60.0;                   // azimuth-component [deg]
-        ang[1] = +3.0;                   // elevation-component [deg]
+        ang[0] = +80.0;                   // azimuth-component [deg]
+        ang[1] = +0.0;                   // elevation-component [deg]
         ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = true;
         drawOnLeft = false;
     }
 
         // Center source
-    else if (angle >= 144 && angle < 210) {
+    else if (angle >= 144 && angle < 250) {
         ang[0] = 0.0;                   // azimuth-component [deg]
-        ang[1] = 5.0;                   // elevation-component [deg]
+        ang[1] = 0.0;                   // elevation-component [deg]
         ang[2] = 0.5;                   // vergence-component [deg]
         drawOnRight = false;
         drawOnLeft = false;
     }
 
         // Left source
-    else if (angle >= 210 && angle < 290) {
-        ang[0] = -60.0;                   // azimuth-component [deg]
-        ang[1] = 5.0;                   // elevation-component [deg]
+    else if (angle >= 250 ) {
+        ang[0] = -50.0;                   // azimuth-component [deg]
+        ang[1] = 0.0;                   // elevation-component [deg]
         ang[2] = 0.5;                   // vergence-component [deg]
         drawOnRight = false;
         drawOnLeft = true;

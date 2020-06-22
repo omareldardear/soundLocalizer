@@ -1,9 +1,10 @@
-BATCH_SIZE = 8
+BATCH_SIZE = 32
 EPOCHS = 50
 RESAMPLING_F = 24000
 INIT_LR = 1e-4
 NUM_BANDS = 26
-PATH_DATASET = "/home/jonas/CLionProjects/soundLocalizer/python-scripts/analysis/output_dataset.csv"
+PATH_DATASET = "/usr/local/src/robot/cognitiveInteraction/soundLocalizer/python-scripts/analysis/output_dataset.csv"
 LENGTH_AUDIO = 1000
-TEST_SUBJECTS = [8, 21]
-FEATURES = 'gcc-phat'
+TEST_SUBJECTS = [8]
+FEATURE = 'gammatone'
+DISTANCE_MIC = 0.14

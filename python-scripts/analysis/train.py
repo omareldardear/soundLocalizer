@@ -1,12 +1,12 @@
 import pandas as pd
 from utils import *
-import tensorflow as tf
 import numpy as np
 from scipy import signal
-from scipy.io.wavfile import write
-import soundfile as sf
 from CONFIG import *
-import os, io
+import os
+from models import *
+import tensorflow as tf
+
 
 random_state = 42
 max_tau = DISTANCE_MIC / 343.2
@@ -38,8 +38,7 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             elif features == 'gammatone':
                 input = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
                 input = input.reshape(input.shape[1], input.shape[0])
-                # input = np.expand_dims(input, axis=-1)
-
+                input = np.expand_dims(input, axis=-1)
 
             elif features == 'mfcc':
                 signal1 = get_MFCC(signal1, RESAMPLING_F)
@@ -81,13 +80,13 @@ def get_generator_dataset(df, output_shape):
 
     ds_train = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 2), output_shape)
+        (tf.float32, tf.int64), ((None, None, 1), output_shape)
     ).shuffle(2000).batch(BATCH_SIZE)
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 2), output_shape)
-    ).shuffle(500).batch(BATCH_SIZE)
+        (tf.float32, tf.int64), ((None, None, 1), output_shape)
+    ).batch(BATCH_SIZE)
 
     return ds_train, ds_test
 
@@ -97,13 +96,14 @@ def main(df):
 
     ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-    model = get_model_1dcnn(output_shape)
+    model = simple_lstm(output_shape)
 
-    model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
+    model.compile(optimizer=tf.keras.optimizers.Adagrad(INIT_LR),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
-    model.fit(ds_train, epochs=EPOCHS, callbacks=get_callbacks())
+
+    model.fit(ds_train, callbacks=get_callbacks(), epochs=EPOCHS)
 
     # Re-evaluate the model
     los, acc = model.evaluate(ds_test, verbose=2)
