@@ -1,7 +1,7 @@
 import pandas as pd
 from utils import *
 import numpy as np
-from scipy import signal
+import scipy.signal
 from CONFIG import *
 import os
 from models import *
@@ -20,38 +20,39 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
         head_position_pan = item['joint2']
         head_position_tilt = item['joint0']
 
-        sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=LENGTH_AUDIO)
+        fs, signal = wavfile.read(audio_filename, "wb", )
+        signal1 = signal[:, 0]
+        signal2 = signal[:, 1]
 
-        for signal1, signal2 in zip(chunks_channel1, chunks_channel2):
-            number_of_samples = round(len(signal1) * float(RESAMPLING_F) / sample_rate)
-            signal1 = np.array(signal.resample(signal1, number_of_samples), dtype=np.float32)
-            signal2 = np.array(signal.resample(signal2, number_of_samples), dtype=np.float32)
+        number_of_samples = round(len(signal1) * float(RESAMPLING_F) / fs)
+        signal1 = np.array(scipy.signal.resample(signal1, number_of_samples), dtype=np.float32)
+        signal2 = np.array(scipy.signal.resample(signal2, number_of_samples), dtype=np.float32)
 
-            if features == 'gcc-phat':
-                window_hanning = np.hanning(number_of_samples)
-                input = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau)
-                norm = np.linalg.norm(input)
-                input = input / norm
-                input = np.concatenate((input, [head_position_pan, head_position_tilt]))
-                input = np.expand_dims(input, axis=-1)
+        if features == 'gcc-phat':
+            window_hanning = np.hanning(number_of_samples)
+            input = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau)
+            norm = np.linalg.norm(input)
+            input = input / norm
+            # input = np.concatenate((input, [head_position_pan, head_position_tilt]))
+            input = np.expand_dims(input, axis=-1)
 
-            elif features == 'gammatone':
-                input = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
-                input = input.reshape(input.shape[1], input.shape[0])
-                input = np.expand_dims(input, axis=-1)
+        elif features == 'gammatone':
+            input = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
+            input = input.reshape(input.shape[1], input.shape[0])
+            input = np.expand_dims(input, axis=-1)
 
-            elif features == 'mfcc':
-                signal1 = get_MFCC(signal1, RESAMPLING_F)
-                signal2 = get_MFCC(signal2, RESAMPLING_F)
-                input = np.stack((signal1, signal2), axis=2)
+        elif features == 'mfcc':
+            signal1 = get_MFCC(signal1, RESAMPLING_F)
+            signal2 = get_MFCC(signal2, RESAMPLING_F)
+            input = np.stack((signal1, signal2), axis=2)
 
 
-            else:
-                signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
-                signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
-                input = np.stack((signal1, signal2), axis=-1)
+        else:
+            signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
+            signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
+            input = np.stack((signal1, signal2), axis=-1)
 
-            yield input, np.squeeze(azimuth_location)
+        yield input, np.squeeze(azimuth_location)
 
         i += 1
 
@@ -80,13 +81,14 @@ def get_generator_dataset(df, output_shape):
 
     ds_train = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, None, 1), output_shape)
-    ).shuffle(2000).batch(BATCH_SIZE)
+        (tf.float32, tf.int64), ((None,  1), output_shape)
+    ).shuffle(200).batch(BATCH_SIZE)
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, None, 1), output_shape)
+        (tf.float32, tf.int64), ((None,  1), output_shape)
     ).batch(BATCH_SIZE)
+
 
     return ds_train, ds_test
 
@@ -96,9 +98,9 @@ def main(df):
 
     ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-    model = simple_lstm(output_shape)
+    model = get_model_1dcnn(output_shape)
 
-    model.compile(optimizer=tf.keras.optimizers.Adagrad(INIT_LR),
+    model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 

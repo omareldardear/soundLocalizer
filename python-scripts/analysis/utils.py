@@ -27,7 +27,7 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
 
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=50):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=150):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
