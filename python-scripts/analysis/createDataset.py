@@ -93,14 +93,16 @@ def create_chunk_dataset(df, output_dir, length_audio):
             filename = str(index) + '-' + str(j) + '_' + str(item['subject_id']) + '.wav'
             filename = os.path.join(output_dir, filename)
 
+            data = np.stack((signal1, signal2), axis=1)
+            scipy.io.wavfile.write(filename, sample_rate, data)
+
             if filter_voice(signal1, sample_rate):
-                data = np.stack((signal1, signal2), axis=1)
-                scipy.io.wavfile.write(filename, sample_rate, data)
                 new_df = new_df.append(item, ignore_index=True)
                 new_df.at[i, 'audio_filename'] = filename
+                i += 1
+
             else:
                 print(f"{filename} not containing voice")
-            i += 1
 
     new_df.to_csv("chunck_dataset-{}.csv".format(length_audio), index=False)
 

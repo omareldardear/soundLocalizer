@@ -226,12 +226,14 @@ def filter_voice(signal, sample_rate, mode=3):
     frames = frame_generator(30, signal, sample_rate)
     frames = list(frames)
 
+    match  = 0
     for frame in frames:
         is_speech = vad.is_speech(frame.bytes, sample_rate)
         if is_speech:
-            return True
+            match += 1
 
-    return False
+    percentage_voice = match * 100 / len(frames)
+    return percentage_voice > 60
 
 
 def read_wave(path):
