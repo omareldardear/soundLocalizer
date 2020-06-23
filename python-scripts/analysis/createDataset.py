@@ -2,13 +2,14 @@ import glob
 import pandas as pd
 import argparse
 import sys, os
-from utils import split_audio_chunks
+from utils import split_audio_chunks, filter_voice
 import scipy.io.wavfile
 import numpy as np
 
 COLUMNS_ANGLES = ['index', 'timestamp', 'azimuth', 'elevation', 'vergence']
 COLUMNS_JOINTS = ['index', 'timestamp', 'joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5']
-COLUMNS_DATA = ['subject_id', 'audio_filename', 'azimuth', 'elevation', 'joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5']
+COLUMNS_DATA = ['subject_id', 'audio_filename', 'azimuth', 'elevation', 'joint0', 'joint1', 'joint2', 'joint3',
+                'joint4', 'joint5']
 
 
 def process_subject(path_subject, subject_id):
@@ -41,7 +42,8 @@ def process_subject(path_subject, subject_id):
         data_angle.insert(0, 'subject_id', str(subject_id))
         data_angle.insert(1, 'audio_filename', str(file_name))
 
-        result = pd.concat([data_angle.reset_index(drop=True), data_joint.reset_index(drop=True)], axis=1, ignore_index=True)
+        result = pd.concat([data_angle.reset_index(drop=True), data_joint.reset_index(drop=True)], axis=1,
+                           ignore_index=True)
 
         df_data = df_data.append(result)
 
@@ -69,20 +71,17 @@ def main(args):
 
     df_dataset['azimuth'] = df_dataset['azimuth'].astype(int)
     df_dataset['elevation'] = df_dataset['elevation'].astype(int)
-    df_dataset['labels'] = (df_dataset['azimuth'] + abs(df_dataset['azimuth'].min()) )
+    df_dataset['labels'] = (df_dataset['azimuth'] + abs(df_dataset['azimuth'].min()))
     df_dataset['labels'] = df_dataset['labels'] // args.azimuth_resolution
 
     df_dataset.to_csv("{}.csv".format(args.output_filename), index=False)
-
 
     return 1
 
 
 def create_chunk_dataset(df, output_dir, length_audio):
-
     new_df = pd.DataFrame()
-
-    list_filename = []
+    i = 0
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -90,24 +89,26 @@ def create_chunk_dataset(df, output_dir, length_audio):
         audio_filename = item['audio_filename']
         sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=length_audio)
 
-        for i, (signal1, signal2) in enumerate(zip(chunks_channel1, chunks_channel2)):
-            filename = str(index) + '-' + str(i) + '_' + str(item['subject_id']) + '.wav'
+        for j , (signal1, signal2) in enumerate(zip(chunks_channel1, chunks_channel2)):
+            filename = str(index) + '-' + str(j) + '_' + str(item['subject_id']) + '.wav'
             filename = os.path.join(output_dir, filename)
-            list_filename.append(filename)
 
-            data = np.stack((signal1, signal2), axis=1)
-            scipy.io.wavfile.write(filename, sample_rate, data)
-            new_df = new_df.append(item, ignore_index=True)
-            new_df.at[i, 'audio_filename'] = filename
+            if filter_voice(signal1, sample_rate):
+                data = np.stack((signal1, signal2), axis=1)
+                scipy.io.wavfile.write(filename, sample_rate, data)
+                new_df = new_df.append(item, ignore_index=True)
+                new_df.at[i, 'audio_filename'] = filename
+            else:
+                print(f"{filename} not containing voice")
+            i += 1
 
     new_df.to_csv("chunck_dataset-{}.csv".format(length_audio), index=False)
 
 
-
-
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description="Format data of several subjects (audioSamples, head angles, head joint) into a unified dataset ")
+    parser = argparse.ArgumentParser(
+        description="Format data of several subjects (audioSamples, head angles, head joint) into a unified dataset ")
     parser.add_argument("data_dir", type=str,
                         help="Path directory of audio samples")
 
@@ -126,9 +127,8 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", type=str, default=None,
                         help="length of the chunk audio")
 
-    parser.add_argument("--save_path", type=str, default='/home/jonas/CLionProjects/soundLocalizer/data',
+    parser.add_argument("--save_path", type=str, default='/tmp',
                         help="length of the chunk audio")
-
 
     parser_args = parser.parse_args()
 

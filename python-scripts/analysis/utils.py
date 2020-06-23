@@ -1,5 +1,6 @@
 import scipy.io.wavfile as wavfile
 import numpy as np
+import webrtcvad
 from scipy.signal import lfilter
 
 import collections
@@ -27,7 +28,7 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
 
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=150):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=15):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -218,21 +219,19 @@ def getCoeffs(f_c, B, T):
 # VOICE ACTIVITY DETECTION FUNCTIONS                                                    #
 #########################################################################################
 
-def filter_voice(audio_chunks, sample_rate):
-    voice_segments = []
+def filter_voice(signal, sample_rate, mode=3):
 
-    for j, signal in enumerate(audio_chunks):
-        signal = np.ascontiguousarray(signal)
-        vad = webrtcvad.Vad(0)
-        frames = frame_generator(30, signal, sample_rate)
-        frames = list(frames)
-        segments = vad_collector(sample_rate, 30, 300, vad, frames)
-        for i, segment in enumerate(segments):
-            write_wave('/tmp/tmp.wav', segment, sample_rate)
-            fs, signal = wavfile.read('/tmp/tmp.wav', "wb")
-            voice_segments.append(signal)
+    signal = np.ascontiguousarray(signal)
+    vad = webrtcvad.Vad(mode)
+    frames = frame_generator(30, signal, sample_rate)
+    frames = list(frames)
 
-    return voice_segments
+    for frame in frames:
+        is_speech = vad.is_speech(frame.bytes, sample_rate)
+        if is_speech:
+            return True
+
+    return False
 
 
 def read_wave(path):

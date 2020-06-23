@@ -75,11 +75,14 @@ def get_model_1dcnn(output_shape):
 
         tf.keras.layers.Dropout(rate=0.4),
 
-        # tf.keras.layers.Reshape((-1, 128)),
-        #
-        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
+        tf.keras.layers.Reshape((-1, 128)),
+
+        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True)),
+
+        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
 
         tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(256, activation="relu"),
         tf.keras.layers.Dense(100, activation="relu"),
         tf.keras.layers.Dropout(rate=0.4),
 
