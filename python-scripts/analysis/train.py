@@ -66,7 +66,7 @@ def get_callbacks():
     ]
 
 
-def get_generator_dataset(df_input, output_shape, len_dataset):
+def get_generator_dataset(df_input, output_shape):
     labels = tf.keras.utils.to_categorical(df_input['labels'])
 
     df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
@@ -74,12 +74,11 @@ def get_generator_dataset(df_input, output_shape, len_dataset):
 
     ds_train = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_train, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, None, 2), output_shape)
-    ).shuffle(len_dataset).batch(BATCH_SIZE)
+        (tf.float32, tf.int64), ((None, 1), output_shape))
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, None,  2), output_shape)
+        (tf.float32, tf.int64), ((None, 1), output_shape)
     ).batch(BATCH_SIZE)
 
     return ds_train, ds_test
@@ -88,13 +87,15 @@ def get_generator_dataset(df_input, output_shape, len_dataset):
 def main(df):
     output_shape = int(df['labels'].max() + 1)
 
-    ds_train, ds_test = get_generator_dataset(df, output_shape, df.shape[0])
+    ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-    model = get_model_cnn(output_shape)
+    model = get_model_1dcnn(output_shape)
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
+
+    ds_train = ds_train.shuffle(df.shape[0]).batch(BATCH_SIZE)
 
     model.fit(ds_train, callbacks=get_callbacks(), epochs=EPOCHS)
 
