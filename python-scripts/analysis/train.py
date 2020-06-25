@@ -6,6 +6,7 @@ from CONFIG import *
 from models import *
 import tensorflow as tf
 
+
 random_state = 42
 max_tau = DISTANCE_MIC / 343.2
 
@@ -30,25 +31,36 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             input_x = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau)
             norm = np.linalg.norm(input_x)
             input_x = input_x / norm
-            input_x = np.concatenate((input_x, [head_position_pan, head_position_tilt]))
             input_x = np.expand_dims(input_x, axis=-1)
+
+            input_head = np.array([head_position_pan, head_position_tilt])
+            input_head = np.expand_dims(input_head, axis=-1)
+
+
+            yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
 
         elif features == 'gammatone':
             input_x = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
             input_x = input_x.reshape(input_x.shape[1], input_x.shape[0])
             input_x = np.expand_dims(input_x, axis=-1)
 
+            yield input_x, np.squeeze(azimuth_location)
+
+
         elif features == 'mfcc':
             signal1 = get_MFCC(signal1, RESAMPLING_F)
             signal2 = get_MFCC(signal2, RESAMPLING_F)
             input_x = np.stack((signal1, signal2), axis=2)
+
+            yield input_x, np.squeeze(azimuth_location)
+
 
         else:
             # signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
             # signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
             input_x = np.stack((signal1, signal2), axis=-1)
 
-        yield input_x, np.squeeze(azimuth_location)
+            yield input_x, np.squeeze(azimuth_location)
 
 
 def get_callbacks():
@@ -66,7 +78,7 @@ def get_callbacks():
     ]
 
 
-def get_generator_dataset(df_input, output_shape):
+def get_generator_dataset(df_input, output_dim):
     labels = tf.keras.utils.to_categorical(df_input['labels'])
 
     df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
@@ -74,13 +86,15 @@ def get_generator_dataset(df_input, output_shape):
 
     ds_train = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_train, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 2), output_shape))
+        output_types=({"input_1": tf.int64, "input_2": tf.int64}, tf.int64),
+        output_shapes=({"input_1": (None,  1), "input_2": (None, 1)}, output_dim)
+    ).shuffle(df_train.shape[0])
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64), ((None, 1), output_shape))
-
-
+        output_types=({"input_1": tf.int64, "input_2": tf.int64}, tf.int64),
+        output_shapes=({"input_1": (None, 1), "input_2": (None, 1)}, output_dim)
+    ).batch(32)
 
     return ds_train, ds_test
 
@@ -88,23 +102,25 @@ def get_generator_dataset(df_input, output_shape):
 def main(df):
     output_shape = int(df['labels'].max() + 1)
 
+    # features_to_normalize = ['joint2', 'joint0']
+    # df[features_to_normalize] = df[features_to_normalize].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
+
     ds_train, ds_test = get_generator_dataset(df, output_shape)
 
-
-    model = conv_net_lstm_attention(output_shape, (26,52,1))
+    model = conv1d_net_lstm_attention(output_shape)
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',
-                  metrics=['accuracy'])
+                  metrics=['accuracy'], experimental_run_tf_function=False)
 
-    ds_train = ds_train.shuffle(df.shape[0]).batch(BATCH_SIZE)
+    ds_train = ds_train.batch(BATCH_SIZE)
 
     model.fit(ds_train, callbacks=get_callbacks(), epochs=EPOCHS)
 
     # Re-evaluate the model
     los, acc = model.evaluate(ds_test, verbose=2)
     print("Test model, accuracy: {:5.2f}%".format(100 * acc))
-    model.save('/tmp/data/saved_model/my_model')
+    tf.saved_model.save(model, '/tmp/data/saved_model/my_model')
 
 
 if __name__ == '__main__':
