@@ -28,7 +28,7 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
 
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=15):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=150):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -233,7 +233,7 @@ def filter_voice(signal, sample_rate, mode=3):
             match += 1
 
     percentage_voice = match * 100 / len(frames)
-    return percentage_voice > 60
+    return percentage_voice > 90
 
 
 def read_wave(path):

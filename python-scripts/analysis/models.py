@@ -42,16 +42,21 @@ def get_model_cnn(output_shape):
     return model
 
 
-def get_model_dense(output_shape):
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dropout(rate=0.5),
-        tf.keras.layers.Dense(128, activation="relu"),
-        tf.keras.layers.Dropout(rate=0.5),
-        tf.keras.layers.Dense(64, activation="relu"),
-        tf.keras.layers.Dropout(rate=0.5),
-        tf.keras.layers.Dense(output_shape, activation="softmax")
-    ])
+def get_model_dense(input_shape, output_shape):
+    inputs = tf.keras.layers.Input(input_shape)
+    x_headPosition = tf.keras.layers.Input((2, 1))
+
+    x = tf.keras.layers.Lambda(lambda q: tf.concat([q, x_headPosition], axis=1))(inputs)
+    x = tf.keras.layers.Lambda(lambda q: tf.expand_dims(q, axis=-1))(x)
+    x = tf.keras.layers.Dense(256, activation="relu")(x)
+    x = tf.keras.layers.Dropout(rate=0.5)(x)
+    x = tf.keras.layers.Dense(128, activation="relu")(x)
+    x = tf.keras.layers.Dropout(rate=0.5)(x)
+    x = tf.keras.layers.Dense(64, activation="relu")(x)
+    x = tf.keras.layers.Dropout(rate=0.5)(x)
+    output = tf.keras.layers.Dense(output_shape, activation="softmax")(x)
+
+    model = tf.keras.Model(inputs=[inputs, x_headPosition], outputs=[output])
 
     return model
 
@@ -123,27 +128,33 @@ def simple_lstm(output_dim):
     return model
 
 
-def conv1d_net_lstm_attention(output_dim=11):
-    inputs = tf.keras.layers.Input((None, 1))
+def conv1d_net_lstm_attention(input_shape, output_dim=11):
+    inputs = tf.keras.layers.Input(input_shape)
     x_headPosition = tf.keras.layers.Input((2, 1))
 
-    x = tf.keras.layers.Conv1D(filters=90, kernel_size=9, activation='relu', padding='same')(inputs)
+    x = tf.keras.layers.Conv1D(filters=128, kernel_size=11, activation='relu', padding='same')(inputs)
     x = tf.keras.layers.BatchNormalization()(x)
+    # x = tf.keras.layers.MaxPooling1D(4)(x)
+
+    x = tf.keras.layers.Conv1D(filters=90, kernel_size=9, activation='relu', padding='same')(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    # x = tf.keras.layers.MaxPooling1D(4)(x)
 
     x = tf.keras.layers.Conv1D(filters=64, kernel_size=7, activation='relu', padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
 
-    x = tf.keras.layers.Conv1D(filters=32, kernel_size=5, activation='relu', padding='same')(x)
-    x = tf.keras.layers.BatchNormalization()(x)
+
+    # x = tf.keras.layers.Conv1D(filters=32, kernel_size=5, activation='relu', padding='same')(x)
+    # x = tf.keras.layers.BatchNormalization()(x)
 
     # x = tf.keras.layers.Lambda(lambda q: squeeze(q, -1), name='squeeze_last_dim') (x)
-    x = tf.keras.layers.Reshape((-1, 16))(x)
+    x = tf.keras.layers.Reshape((-1, 64))(x)
 
     x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True))(x)
-    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True))(x)
+    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True))(x)
 
-    xFirst = tf.keras.layers.Lambda(lambda q: q[:, 16])(x)  # [b_s, vec_dim]
-    query = tf.keras.layers.Dense(128)(xFirst)
+    xFirst = tf.keras.layers.Lambda(lambda q: q[:, 128])(x)  # [b_s, vec_dim]
+    query = tf.keras.layers.Dense(256)(xFirst)
 
     # dot product attention
     attScores = tf.keras.layers.Dot(axes=[1, 2])([query, x])
@@ -153,10 +164,11 @@ def conv1d_net_lstm_attention(output_dim=11):
     attVector = tf.keras.layers.Dot(axes=[1, 1])([attScores, x])  # [b_s, vec_dim]
 
     x = tf.keras.layers.Dense(256, activation='relu')(attVector)
-    x = tf.keras.layers.Dropout(0.3)(x)
+    # x = tf.keras.layers.Dropout(0.3)(x)
 
     x = tf.keras.layers.Lambda(lambda q: tf.concat([q, x_headPosition[:, :, 0]], axis=1))(x)
     x = tf.keras.layers.Dense(128, activation='relu')(x)
+    # x = tf.keras.layers.Dropout(0.3)(x)
     x = tf.keras.layers.Dense(64, activation='relu')(x)
     output = tf.keras.layers.Dense(output_dim, activation='softmax', name='output')(x)
 
@@ -165,25 +177,27 @@ def conv1d_net_lstm_attention(output_dim=11):
     return model
 
 
-def conv_net_lstm_attention(output_dim=11, mel_dim=(32, 26, 1)):
-    inputs = tf.keras.layers.Input(None,1)
+def conv_net_lstm_attention(input_shape, output_dim=11):
 
-    x = tf.keras.layers.Conv2D(filters=10, kernel_size=(5, 1), activation='relu', padding='same')(inputs)
+    inputs = tf.keras.layers.Input(input_shape)
+    x_headPosition = tf.keras.layers.Input((2, 1))
+
+    x = tf.keras.layers.Conv2D(filters=128, kernel_size=(7, 2), activation='relu', padding='same')(inputs)
     x = tf.keras.layers.BatchNormalization()(x)
 
-    x = tf.keras.layers.Conv2D(filters=40, kernel_size=(5, 1), activation='relu', padding='same')(x)
+    x = tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
 
-    x = tf.keras.layers.Conv2D(filters=1, kernel_size=(5, 1), activation='relu', padding='same')(x)
+    x = tf.keras.layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
 
-    x = tf.keras.layers.Lambda(lambda q: squeeze(q, -1), name='squeeze_last_dim') (x)
+    x = tf.keras.layers.Reshape((-1, 64))(x)
 
-    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True))(x)
-    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True))(x)
+    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True))(x)
+    x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True))(x)
 
-    xFirst = tf.keras.layers.Lambda(lambda q: q[:, 16])(x)  # [b_s, vec_dim]
-    query = tf.keras.layers.Dense(128)(xFirst)
+    xFirst = tf.keras.layers.Lambda(lambda q: q[:, 128])(x)  # [b_s, vec_dim]
+    query = tf.keras.layers.Dense(256)(xFirst)
 
     # dot product attention
     attScores = tf.keras.layers.Dot(axes=[1, 2])([query, x])
@@ -192,11 +206,16 @@ def conv_net_lstm_attention(output_dim=11, mel_dim=(32, 26, 1)):
     # rescale sequence
     attVector = tf.keras.layers.Dot(axes=[1, 1])([attScores, x])  # [b_s, vec_dim]
 
-    x = tf.keras.layers.Dense(64, activation='relu')(attVector)
-    x = tf.keras.layers.Dropout(0.3)(x)
-    x = tf.keras.layers.Dense(32)(x)
+    x = tf.keras.layers.Dense(256, activation='relu')(attVector)
+    # x = tf.keras.layers.Dropout(0.3)(x)
+
+    x = tf.keras.layers.Lambda(lambda q: tf.concat([q, x_headPosition[:, :, 0]], axis=1))(x)
+    x = tf.keras.layers.Dense(128, activation='relu')(x)
+    # x = tf.keras.layers.Dropout(0.3)(x)
+    x = tf.keras.layers.Dense(64, activation='relu')(x)
     output = tf.keras.layers.Dense(output_dim, activation='softmax', name='output')(x)
 
-    model = tf.keras.Model(inputs=[inputs], outputs=[output])
+    model = tf.keras.Model(inputs=[inputs, x_headPosition], outputs=[output])
 
     return model
+
