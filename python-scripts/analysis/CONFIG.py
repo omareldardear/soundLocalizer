@@ -1,10 +1,10 @@
-BATCH_SIZE = 256
+BATCH_SIZE = 16
 EPOCHS = 40
 RESAMPLING_F = 4096
 INIT_LR = 1e-3
 NUM_BANDS = 26
 PATH_DATASET = "/usr/local/src/robot/cognitiveInteraction/soundLocalizer/python-scripts/analysis/chunck_dataset-1000.csv"
 TEST_SUBJECTS = [8, 21]
-FEATURE = 'gcc-phat'
+FEATURE = 'mfcc'
 DISTANCE_MIC = 0.14
 INPUT_SHAPE = (None, 1)
