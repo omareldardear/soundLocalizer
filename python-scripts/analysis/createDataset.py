@@ -95,7 +95,6 @@ def create_chunk_dataset(df, output_dir, length_audio):
 
             data = np.stack((signal1, signal2), axis=1)
 
-
             if filter_voice(signal1, sample_rate):
                 new_df = new_df.append(item, ignore_index=True)
                 new_df.at[i, 'audio_filename'] = filename

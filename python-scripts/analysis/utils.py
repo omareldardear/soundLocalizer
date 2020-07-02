@@ -28,7 +28,7 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
 
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=150):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -213,8 +213,6 @@ def getCoeffs(f_c, B, T):
     return (afCoeffB, afCoeffA)
 
 
-
-
 #########################################################################################
 # VOICE ACTIVITY DETECTION FUNCTIONS                                                    #
 #########################################################################################
@@ -223,17 +221,17 @@ def filter_voice(signal, sample_rate, mode=3):
 
     signal = np.ascontiguousarray(signal)
     vad = webrtcvad.Vad(mode)
-    frames = frame_generator(30, signal, sample_rate)
+    frames = frame_generator(20, signal, sample_rate)
     frames = list(frames)
 
-    match  = 0
+    match = 0
     for frame in frames:
         is_speech = vad.is_speech(frame.bytes, sample_rate)
         if is_speech:
             match += 1
 
     percentage_voice = match * 100 / len(frames)
-    return percentage_voice > 90
+    return percentage_voice > 98
 
 
 def read_wave(path):

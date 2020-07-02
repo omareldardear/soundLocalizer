@@ -22,7 +22,6 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
         signal1 = signal[:, 0]
         signal2 = signal[:, 1]
 
-
         number_of_samples = round(len(signal1) * float(RESAMPLING_F) / fs)
         signal1 = np.array(scipy.signal.resample(signal1, number_of_samples), dtype=np.float32)
         signal2 = np.array(scipy.signal.resample(signal2, number_of_samples), dtype=np.float32)
@@ -33,8 +32,8 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
         if features == 'gcc-phat':
             window_hanning = np.hanning(number_of_samples)
             input_x = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau)
-            # norm = np.linalg.norm(input_x)
-            # input_x = input_x / norm
+            norm = np.linalg.norm(input_x)
+            input_x = input_x / norm
             input_x = np.expand_dims(input_x, axis=-1)
 
             yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
@@ -42,7 +41,7 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
         elif features == 'gammatone':
             input_x = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
             input_x = input_x.reshape(input_x.shape[1], input_x.shape[0])
-            input_x = np.expand_dims(input_x, axis=-1)
+            # input_x = np.expand_dims(input_x, axis=-1)
 
             yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
 
@@ -51,7 +50,7 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             signal2 = get_MFCC(signal2, RESAMPLING_F)
             input_x = np.stack((signal1, signal2), axis=2)
 
-            yield input_x, np.squeeze(azimuth_location)
+            yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
 
 
         else:
@@ -90,7 +89,7 @@ def get_generator_dataset(df_input, output_dim):
         lambda: sound_location_generator(df_train, labels, FEATURE),
         output_types=({"input_1": tf.int64, "input_2": tf.int64}, tf.int64),
         output_shapes=({"input_1": INPUT_SHAPE, "input_2": (None, 1)}, output_dim)
-    ).shuffle(df_train.shape[0] // 2)
+    ).shuffle(df_train.shape[0])
 
     ds_val = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_val, labels, FEATURE),
@@ -124,7 +123,7 @@ def main(df):
         name="lr_decay"
     )
 
-    model.compile(optimizer=tf.keras.optimizers.Adam(lr_schedule),
+    model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'], experimental_run_tf_function=False)
 
@@ -135,7 +134,7 @@ def main(df):
     # Re-evaluate the model
     los, acc = model.evaluate(ds_test, verbose=2)
     print("Test model, accuracy: {:5.2f}%".format(100 * acc))
-    tf.saved_model.save(model, '/tmp/data/saved_model/my_model.h5')
+    model.save('/tmp/data/saved_model/my_model.h5')
 
 
 if __name__ == '__main__':
