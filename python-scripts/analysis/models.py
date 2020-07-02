@@ -61,7 +61,24 @@ def get_model_dense(input_shape, output_shape):
     return model
 
 
-def get_model_1dcnn(output_shape):
+def get_model_dense_simple( output_shape):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Dense(512, activation="relu"),
+        tf.keras.layers.Dense(256, activation="relu"),
+        tf.keras.layers.Dense(128, activation="relu"),
+        tf.keras.layers.Dropout(rate=0.5),
+        tf.keras.layers.Dense(64, activation="relu"),
+        tf.keras.layers.Dropout(rate=0.5),
+        tf.keras.layers.Dense(output_shape, activation="softmax"),
+
+    ])
+
+    return model
+
+
+
+
+def get_model_1dcnn_simple(output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Conv1D(filters=32, kernel_size=7, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
