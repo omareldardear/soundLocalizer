@@ -28,7 +28,7 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
 
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -38,25 +38,30 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16):
     n = sig.shape[0] + refsig.shape[0]
 
     # Generalized Cross Correlation Phase Transform
-    SIG = np.fft.rfft(sig)
-    REFSIG = np.fft.rfft(refsig)
+    SIG = np.fft.rfft(sig, n=n)
+    REFSIG = np.fft.rfft(refsig, n=n)
     R = SIG * np.conj(REFSIG)
 
-    cc = np.fft.irfft(R / np.abs(R))
+    cc = np.fft.irfft(R / np.abs(R), n=(interp * n))
 
     max_shift = int(interp * n / 2)
-
     if max_tau:
         max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
 
+
     cc = np.concatenate((cc[-max_shift:], cc[:max_shift + 1]))
 
-    # find max cross correlation index
-    shift = np.argmax(np.abs(cc)) - max_shift
+    ind = np.argpartition(cc, -n_delay)[-n_delay:]
 
-    tau = shift / float(interp * fs)
+    delay = []
+    for i in ind:
+        # find max cross correlation index
+        shift =i - max_shift
 
-    return cc
+        tau = shift / float(interp * fs)
+        delay.append(tau)
+
+    return delay, cc
 
 
 def concat_fourier_transform(sig1, sig2, n=512):
