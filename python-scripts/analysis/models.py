@@ -81,20 +81,26 @@ def get_model_dense_simple( output_shape):
 
 def get_model_1dcnn_simple(output_shape):
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv1D(filters=32, kernel_size=7, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+
+        tf.keras.layers.Conv1D(filters=256, kernel_size=11, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.MaxPooling1D(4),
+
+        tf.keras.layers.Conv1D(filters=128, kernel_size=9, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(4),
 
         tf.keras.layers.Conv1D(filters=64, kernel_size=7, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(4),
+
+        tf.keras.layers.Conv1D(filters=32, kernel_size=5, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(2),
-
-        tf.keras.layers.Conv1D(filters=128, kernel_size=5, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.0005)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling1D(3),
 
 
         # tf.keras.layers.Reshape((-1, 128)),
@@ -104,6 +110,7 @@ def get_model_1dcnn_simple(output_shape):
         # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
 
         tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(512, activation="relu"),
         tf.keras.layers.Dense(256, activation="relu"),
         tf.keras.layers.Dense(100, activation="relu"),
         tf.keras.layers.Dropout(rate=0.4),
