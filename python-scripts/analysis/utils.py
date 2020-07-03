@@ -257,7 +257,7 @@ def filter_voice(signal, sample_rate, mode=3):
             match += 1
 
     percentage_voice = match * 100 / len(frames)
-    return percentage_voice > 98
+    return percentage_voice > 50
 
 
 def read_wave(path):

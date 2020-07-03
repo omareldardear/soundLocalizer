@@ -122,7 +122,7 @@ def get_callbacks():
     checkpoint_path = "/tmp/training_2/cp-{epoch:04d}.ckpt"
 
     return [
-        
+
         tf.keras.callbacks.TensorBoard("data/log"),
         tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_path,

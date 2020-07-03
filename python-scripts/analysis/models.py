@@ -82,6 +82,11 @@ def get_model_dense_simple( output_shape):
 def get_model_1dcnn_simple(output_shape):
     model = tf.keras.models.Sequential([
 
+        tf.keras.layers.Conv1D(filters=512, kernel_size=15, activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(8),
+
         tf.keras.layers.Conv1D(filters=256, kernel_size=11, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
