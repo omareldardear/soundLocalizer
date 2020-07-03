@@ -1,7 +1,7 @@
 import scipy.io.wavfile as wavfile
 import numpy as np
 import webrtcvad
-from scipy.signal import lfilter
+from scipy.signal import lfilter, hilbert, filtfilt, butter, lfilter
 
 import collections
 import contextlib
@@ -12,6 +12,30 @@ import librosa
 #########################################################################################
 # FEATURES EXTRACTIONS FUNCTIONS                                                        #
 #########################################################################################
+
+
+
+def FilteredSignal(signal, fs, cutoff):
+    B, A = butter(1, cutoff / (fs / 2), btype='low')
+    filtered_signal = filtfilt(B, A, signal, axis=0)
+    return filtered_signal
+
+
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+
+
 
 
 def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
@@ -56,8 +80,7 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
     delay = []
     for i in ind:
         # find max cross correlation index
-        shift =i - max_shift
-
+        shift = i - max_shift
         tau = shift / float(interp * fs)
         delay.append(tau)
 
@@ -111,15 +134,13 @@ def split_audio_chunks(audio_filename, size_chunks=500):
 
     return fs, chunk_signal1, chunk_signal2
 
-def gcc_gammatoneFilter(sig1, sig2, fs, nb_bands):
+def gcc_gammatoneFilter(sig1, sig2, fs, nb_bands, ndelay):
     gamma_sig1 = ToolGammatoneFb(sig1, fs, iNumBands=nb_bands)
     gamma_sig2 = ToolGammatoneFb(sig2, fs, iNumBands=nb_bands)
 
     gcc_features = []
     for filter1, filter2 in zip(gamma_sig1, gamma_sig2):
-        gcc = gcc_phat(filter1, filter2, fs)
-        norm = np.linalg.norm(gcc)
-        gcc = gcc / norm
+        gcc = gcc_phat(filter1, filter2, fs, n_delay=ndelay)
         gcc_features.append(gcc)
 
     output = np.array(gcc_features)
