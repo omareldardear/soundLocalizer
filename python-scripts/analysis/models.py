@@ -78,8 +78,6 @@ def get_model_dense_simple( output_shape):
     return model
 
 
-
-
 def get_model_1dcnn_simple(output_shape):
     model = tf.keras.models.Sequential([
 
