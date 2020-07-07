@@ -5,7 +5,7 @@ import scipy.signal
 from CONFIG import *
 from models import *
 import tensorflow as tf
-
+from dataGenerator import DataGenerator
 
 random_state = 42
 max_tau = DISTANCE_MIC / 343.2
@@ -60,8 +60,6 @@ def sound_location_generator_bis(df_dataset, labels, features='gcc-phat'):
             yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
 
 
-
-
 def sound_location_generator(df_dataset, labels, features='gcc-phat'):
     for index, item in df_dataset.iterrows():
         audio_filename = item['audio_filename']
@@ -82,7 +80,7 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
 
         if features == 'gcc-phat':
             window_hanning = np.hanning(number_of_samples)
-            input_x, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau, n_delay=N_DELAY)
+            delay, input_x = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau, n_delay=N_DELAY)
 
             input_x = np.expand_dims(input_x, axis=-1)
 
@@ -115,14 +113,12 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             yield input_x , np.squeeze(azimuth_location)
 
 
-
-
 def get_callbacks():
     # Include the epoch in the file name (uses `str.format`)
     checkpoint_path = "/tmp/training_2/cp-{epoch:04d}.ckpt"
 
     return [
-
+        tf.keras.callbacks.EarlyStopping(monitor='accuracy', patience=5),
         tf.keras.callbacks.TensorBoard("data/log"),
         tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_path,
@@ -168,8 +164,6 @@ def get_generator_dataset(df_input, output_dim):
     df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
     df_train = df_input.drop(df_test.index)
 
-    df_train = df_train .sample(frac=1, random_state=random_state).reset_index(drop=True)
-
     # df_val = df_train.sample(frac=0.1, random_state=random_state)
     # df_train = df_train.drop(df_val.index)
 
@@ -194,33 +188,61 @@ def get_generator_dataset(df_input, output_dim):
     return ds_train, ds_test
 
 
+def get_datasets(df_input, val=False):
+    df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
+    df_train = df_input.drop(df_test.index).reset_index(drop=True)
+    df_test = df_test.reset_index(drop=True)
 
-def main(df):
-    output_shape = int(df['labels'].max() + 1)
+    if val:
+        df_val = df_train.sample(frac=0.1, random_state=random_state)
+        df_train = df_train.drop(df_val.index).reset_index(drop=True)
+        df_val = df_val.reset_index(drop=True)
+
+        return df_train, df_val, df_train
+
+    return df_train, df_test
+
+###################################################################################
+#                                   MAIN PROCESS                                  #
+###################################################################################
+
+def main(df_input):
+    output_shape = int(df_input['labels'].max() + 1)
 
     features_to_normalize = ['joint2', 'joint0']
-    df[features_to_normalize] = df[features_to_normalize].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
+    df[features_to_normalize] = df_input[features_to_normalize].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
 
-    ds_train, ds_test = get_generator_dataset(df, output_shape)
-    ds_train = ds_train.batch(BATCH_SIZE)
+    # Model parameters
+    params = {'dim': INPUT_SHAPE,
+              'batch_size': BATCH_SIZE,
+              'n_channels': 1,
+              'resample': RESAMPLING_F,
+              'shuffle': True}
 
+    # Define train and test generators
+    df_train, df_test = get_datasets(df_input)
+
+    training_generator = DataGenerator(df_train, FEATURE, **params)
+    test_generator = DataGenerator(df_test, FEATURE, **params)
+
+    # Define the model
     model = get_model_1dcnn_simple(output_shape)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
-        decay_steps=1000,
+        decay_steps=500,
         decay_rate=0.94,
         name="lr_decay"
     )
 
-    model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
+    model.compile(optimizer=tf.keras.optimizers.Adam(lr_schedule),
                   loss='categorical_crossentropy',
                   metrics=['categorical_accuracy'])
 
-    model.fit(ds_train, callbacks=get_callbacks(), epochs=EPOCHS)
+    model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS)
 
     # Re-evaluate the model
-    los, acc = model.evaluate(ds_test, verbose=2)
+    los, acc = model.evaluate(test_generator, verbose=2)
     print("Test model, accuracy: {:5.2f}%".format(100 * acc))
     model.save('/tmp/data/saved_model/my_model.h5')
 

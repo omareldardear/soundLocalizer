@@ -64,6 +64,7 @@ def get_model_dense(input_shape, output_shape):
 def get_model_dense_simple( output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
+        # tf.keras.layers.Dense(2048, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
         tf.keras.layers.Dense(1024, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
         tf.keras.layers.Dense(512, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
         tf.keras.layers.Dense(256, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
@@ -98,11 +99,6 @@ def get_model_1dcnn_simple(output_shape):
         tf.keras.layers.MaxPooling1D(4),
 
         tf.keras.layers.Conv1D(filters=64, kernel_size=7, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling1D(4),
-
-        tf.keras.layers.Conv1D(filters=32, kernel_size=5, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(2),
