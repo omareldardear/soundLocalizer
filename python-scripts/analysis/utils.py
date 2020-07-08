@@ -80,7 +80,13 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
 
     ind = np.argpartition(cc, -n_delay)[-n_delay:]
 
+    center_gcc = len(cc) // 2
+
+    cc = np.concatenate(([cc[(center_gcc - n_delay):center_gcc], cc[:center_gcc:(center_gcc + n_delay - 1)]]))
+
+
     delay = []
+
     for i in ind:
         # find max cross correlation index
         shift = i - max_shift
@@ -142,12 +148,15 @@ def gcc_gammatoneFilter(sig1, sig2, fs, nb_bands, ndelay):
     gamma_sig2 = ToolGammatoneFb(sig2, fs, iNumBands=nb_bands)
 
     gcc_features = []
+    delay_features = []
     for filter1, filter2 in zip(gamma_sig1, gamma_sig2):
-        gcc = gcc_phat(filter1, filter2, fs, n_delay=ndelay)
+        delay, gcc = gcc_phat(filter1, filter2, fs, n_delay=ndelay)
         gcc_features.append(gcc)
+        delay_features.append(delay)
 
-    output = np.array(gcc_features)
-    return  output
+    gcc_features = np.array(gcc_features)
+    delay_features = np.array(delay_features)
+    return  gcc_features, delay_features
 
 
 
@@ -473,7 +482,7 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             window_hanning = np.hanning(number_of_samples)
             delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau, n_delay=N_DELAY)
 
-            input_x = np.expand_dims(gcc, axis=-1)
+            input_x = np.expand_dims(delay, axis=-1)
 
             yield input_x , np.squeeze(azimuth_location)
 
@@ -579,7 +588,6 @@ def get_generator_dataset(df_input, output_dim):
         (tf.float32 , tf.int64),
         (INPUT_SHAPE, output_dim)
     ).batch(BATCH_SIZE)
-
 
     ds_test = tf.data.Dataset.from_generator(
         lambda: sound_location_generator(df_test, labels, FEATURE),

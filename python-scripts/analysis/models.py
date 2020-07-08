@@ -8,34 +8,33 @@ from tensorflow.keras.backend import squeeze
 
 def get_model_cnn(output_shape):
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(filters=50, kernel_size=(7, 2), activation='relu', padding='same',
+        tf.keras.layers.Conv2D(filters=12, kernel_size=(5, 5), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((2, 1)),
 
-        tf.keras.layers.Conv2D(filters=60, kernel_size=(3, 3), activation='relu', padding='same',
+
+        tf.keras.layers.Conv2D(filters=24, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((1, 1)),
 
-        tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same',
+
+        tf.keras.layers.Conv2D(filters=48, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((2, 1)),
 
-        tf.keras.layers.Conv2D(filters=90, kernel_size=(3, 3), activation='relu', padding='same',
+
+        tf.keras.layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D((2, 1)),
 
-        tf.keras.layers.Reshape((-1, 90)),
 
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True)),
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
+        # tf.keras.layers.Reshape((-1, 90)),
+        #
+        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True)),
+        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
 
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(150, activation="relu"),
-        tf.keras.layers.Dropout(rate=0.5),
         tf.keras.layers.Dense(output_shape, activation="softmax")
     ])
 
@@ -64,13 +63,12 @@ def get_model_dense(input_shape, output_shape):
 def get_model_dense_simple( output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
-        # tf.keras.layers.Dense(2048, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
-        tf.keras.layers.Dense(1024, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
-        tf.keras.layers.Dense(512, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
-        tf.keras.layers.Dense(256, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
-        tf.keras.layers.Dense(128, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
-        tf.keras.layers.Dense(64, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=0.01, l2=0.01)),
-        tf.keras.layers.Dropout(rate=0.5),
+        # tf.keras.layers.Dense(2048, activation="relu"),
+        # tf.keras.layers.Dense(1024, activation="relu"),
+        tf.keras.layers.Dense(512, activation="relu"),
+        tf.keras.layers.Dense(256, activation="relu"),
+        tf.keras.layers.Dense(128, activation="relu"),
+        tf.keras.layers.Dense(64, activation="relu"),
         tf.keras.layers.Dense(output_shape, activation="softmax"),
 
     ])
@@ -82,22 +80,22 @@ def get_model_1dcnn_simple(output_shape):
     model = tf.keras.models.Sequential([
 
         tf.keras.layers.Conv1D(filters=512, kernel_size=15, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(8),
 
         tf.keras.layers.Conv1D(filters=256, kernel_size=11, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(4),
 
         tf.keras.layers.Conv1D(filters=128, kernel_size=9, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(4),
 
         tf.keras.layers.Conv1D(filters=64, kernel_size=7, activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
+                               kernel_regularizer=tf.keras.regularizers.l2(0.005)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(2),
 

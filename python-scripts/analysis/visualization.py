@@ -1,14 +1,14 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import argparse
-from utils import split_audio_chunks, concat_fourier_transform
 import numpy as np
 # Import for signal processing
-from scipy.signal import hilbert, filtfilt, butter, resample, lfilter
 import scipy.io.wavfile as wavfile
+from scipy.signal import resample
 
-plt.style.use('elegant.mplstyle')
+import math
+from utils import *
+# plt.style.use('elegant.mplstyle')
 
 def show_angles(df):
     fig = plt.figure(figsize=(15, 10))
@@ -44,41 +44,88 @@ def show_fourrier_transform(df):
     ax.set_ylabel("Amplitude")
 
 
+def xcorr_freq(s1,s2):
+    pad1 = np.zeros(len(s1))
+    pad2 = np.zeros(len(s2))
+    s1 = np.hstack([s1,pad1])
+    s2 = np.hstack([pad2,s2])
+    f_s1 =  np.fft.fft(s1)
+    f_s2 =  np.fft.fft(s2)
+    f_s2c = np.conj(f_s2)
+    f_s = f_s1 * f_s2c
+    denom = abs(f_s)
+    denom[denom < 1e-6] = 1e-6
+    f_s = f_s / denom  # This line is the only difference between GCC-PHAT and normal cross correlation
+    return np.abs( np.fft.ifft(f_s))[1:]
 
-def FilteredSignal(signal, fs, cutoff):
-    B, A = butter(1, cutoff / (fs / 2), btype='low')
-    filtered_signal = filtfilt(B, A, signal, axis=0)
-    return filtered_signal
 
+def test_gcc_phat(filename):
+    test_filename = filename
+    fs, signal = wavfile.read(test_filename)
 
-def butter_bandpass(lowcut, highcut, fs, order=5):
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    b, a = butter(order, [low, high], btype='band')
-    return b, a
+    number_of_samples = round(len(signal) * float(8000) / fs)
+    signal = np.array(resample(signal, number_of_samples), dtype=np.float32)
 
+    max_tau = 0.0004
+    signal1 = signal[:, 0]
+    signal2 = signal[:, 1]
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = lfilter(b, a, data)
-    return y
+    signal1 = butter_bandpass_filter(signal1, 100, 900, fs)
+    signal2 = butter_bandpass_filter(signal2, 100, 900, fs)
+
+    refsig = np.linspace(1, 10, 10)
+
+    delay, gcc = gcc_phat(signal1, signal2, fs, max_tau, n_delay=150)
+
+    for d in delay:
+        tmp = math.asin(d / max_tau)
+
+        theta = tmp * 180 / math.pi
+        print('\ntheta: {}'.format(int(theta)))
+
+    limit = len(gcc) // 2
+    x = (np.linspace(-limit, limit, num=len(gcc)) / fs) * 1000
+
+    plt.plot(x, gcc)
+    plt.show()
+
 
 def main(args):
 
 
-    df = pd.read_csv(args.data_filename)
-    
-    test_filename = df.iloc[150]['audio_filename']
-    fs, signal = wavfile.read(test_filename)
-    filt_signal = []
-    filt_signal.append(butter_bandpass_filter(signal[:, 0], 4000, 5000, fs))
-    filt_signal.append(butter_bandpass_filter(signal[:, 1], 4000, 5000, fs))
-    wavfile.write('ref_test.wav', fs, signal)
+    filename = "/home/jonas/CLionProjects/soundLocalizer/data/dataset-500/68-4_41.wav"
 
-    filt_signal =  np.array(filt_signal, dtype=np.int16)
-    filt_signal = filt_signal.reshape(filt_signal.shape[1], filt_signal.shape[0])
-    wavfile.write('test.wav', fs, filt_signal)
+    fs, signal = wavfile.read(filename)
+
+    # number_of_samples = round(len(signal) * float(8000) / fs)
+    # signal = np.array(resample(signal, number_of_samples), dtype=np.float32)
+
+    max_tau = 0.0004
+    signal1 = signal[:, 0]
+    signal2 = signal[:, 1]
+
+    gammatone_gcc, gammatone_delay = gcc_gammatoneFilter(signal1, signal2, fs, 40, 51)
+    limit = len(gammatone_gcc[0]) // 2
+
+    x = (np.linspace(-limit, limit, num=len(gammatone_gcc[0])) / fs)
+
+    for gamma_d in gammatone_delay:
+        for d in gamma_d:
+            tmp = math.asin(d / max_tau)
+
+            theta = tmp * 180 / math.pi
+            print('\ntheta: {}'.format(int(theta)))
+
+    for g in gammatone_gcc:
+        plt.plot(x, g)
+
+        plt.show()
+
+
+
+
+
+
 
 
 if __name__ == '__main__':

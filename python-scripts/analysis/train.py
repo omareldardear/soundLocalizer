@@ -1,15 +1,11 @@
 import pandas as pd
 from utils import *
-
 from CONFIG import *
 from models import *
 import tensorflow as tf
 from dataGenerator import DataGenerator
 
 random_state = 42
-max_tau = DISTANCE_MIC / 343.2
-
-
 
 
 
@@ -31,6 +27,7 @@ def get_datasets(df_input, val=False):
 #                                   MAIN PROCESS                                  #
 ###################################################################################
 
+
 def main(df_input):
     output_shape = int(df_input['labels'].max() + 1)
 
@@ -47,11 +44,11 @@ def main(df_input):
     # Define train and test generators
     df_train, df_test = get_datasets(df_input)
 
-    training_generator = DataGenerator(df_train, FEATURE, **params)
-    test_generator = DataGenerator(df_test, FEATURE, **params)
+    training_generator = DataGenerator(df_train, FEATURE, output_shape, **params)
+    test_generator = DataGenerator(df_test, FEATURE, output_shape, **params)
 
     # Define the model
-    model = get_model_1dcnn_simple(output_shape)
+    model = get_model_cnn(output_shape)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,

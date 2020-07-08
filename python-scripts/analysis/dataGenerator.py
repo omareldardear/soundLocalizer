@@ -8,7 +8,7 @@ from CONFIG import *
 
 class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, dataFrame, features, batch_size=32, dim=(32,32,32), n_channels=1,
+    def __init__(self, dataFrame, features, num_classe, batch_size=32, dim=(32,32,32), n_channels=1,
                  resample=0, shuffle=True):
 
         'Initialization'
@@ -18,7 +18,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.get_labels()
         self.list_IDs = dataFrame['audio_filename']
         self.n_channels = n_channels
-        self.n_classes = int(dataFrame['labels'].max() + 1)
+        self.n_classes = num_classe
         self.shuffle = shuffle
         self.on_epoch_end()
         self.resampling = resample
@@ -59,7 +59,7 @@ class DataGenerator(tf.keras.utils.Sequence):
     def __data_generation(self, list_IDs_temp):
         'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Initialization
-        X = np.empty((self.batch_size, self.dim, self.n_channels))
+        X = np.empty((self.batch_size, *self.dim, self.n_channels))
         y = np.empty(self.batch_size, dtype=int)
 
         # Generate data
@@ -78,11 +78,13 @@ class DataGenerator(tf.keras.utils.Sequence):
                 delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, self.max_tau,
                                           n_delay=N_DELAY)
 
-                input_x = np.expand_dims(gcc, axis=-1)
+                input_x = np.expand_dims(delay, axis=-1)
 
             elif self.features == 'gammatone':
-                input_x = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS, N_DELAY)
-                input_x, gcc = input_x.reshape(input_x.shape[1], input_x.shape[0])
+                input_x, _ = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS, N_DELAY)
+                input_x = input_x.reshape(input_x.shape[1], input_x.shape[0])
+                input_x = np.expand_dims(input_x, axis=-1)
+
 
 
             else:
