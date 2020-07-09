@@ -2,9 +2,13 @@ import glob
 import pandas as pd
 import argparse
 import sys, os
-from utils import split_audio_chunks, filter_voice
+from utils import split_audio_chunks, filter_voice, gcc_gammatoneFilter
 import scipy.io.wavfile
 import numpy as np
+from CONFIG import *
+import pickle
+from tqdm import tqdm
+
 
 COLUMNS_ANGLES = ['index', 'timestamp', 'azimuth', 'elevation', 'vergence']
 COLUMNS_JOINTS = ['index', 'timestamp', 'joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5']
@@ -85,7 +89,7 @@ def create_chunk_dataset(df, output_dir, length_audio):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for index, item in df.iterrows():
+    for index, item in tqdm(df.iterrows()):
         audio_filename = item['audio_filename']
         sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=length_audio)
 
@@ -99,6 +103,9 @@ def create_chunk_dataset(df, output_dir, length_audio):
                 new_df = new_df.append(item, ignore_index=True)
                 new_df.at[i, 'audio_filename'] = filename
                 scipy.io.wavfile.write(filename, sample_rate, data)
+                gcc, delay = gcc_gammatoneFilter(signal1, signal2, sample_rate, NUM_BANDS, N_DELAY)
+                pickle_filename = filename.split('.wav')[0]
+                pickle.dump(gcc, open(pickle_filename, "wb"))
                 i += 1
 
             else:

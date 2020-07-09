@@ -4,7 +4,7 @@ import scipy.io.wavfile as wavfile
 import scipy.signal
 from utils import gcc_phat, gcc_gammatoneFilter
 from CONFIG import *
-
+import pickle
 
 class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
@@ -64,31 +64,28 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
-            fs, signal = wavfile.read(ID, "wb")
-            signal1 = signal[:, 0]
-            signal2 = signal[:, 1]
-
-            if self.resampling:
-                fs = round(len(signal1) * float(self.resampling) / fs)
-                signal1 = np.array(scipy.signal.resample(signal1, fs), dtype=np.float32)
-                signal2 = np.array(scipy.signal.resample(signal2, fs), dtype=np.float32)
-
-            if self.features == 'gcc-phat':
-                window_hanning = np.hanning(fs)
-                delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, self.max_tau,
-                                          n_delay=N_DELAY)
-
-                input_x = np.expand_dims(delay, axis=-1)
-
-            elif self.features == 'gammatone':
-                input_x, _ = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS, N_DELAY)
+            if self.features == 'gammatone':
+                input_x = pickle.load(open(ID.split('.wav')[0], 'rb'))
                 input_x = input_x.reshape(input_x.shape[1], input_x.shape[0])
                 input_x = np.expand_dims(input_x, axis=-1)
 
-
-
             else:
-                input_x = np.stack((signal1, signal2), axis=-1)
+                fs, signal = wavfile.read(ID, "wb")
+                signal1 = signal[:, 0]
+                signal2 = signal[:, 1]
+
+                if self.resampling:
+                    nb_samples = round(len(signal1) * float(self.resampling) / fs)
+                    signal1 = np.array(scipy.signal.resample(signal1, nb_samples), dtype=np.float32)
+                    signal2 = np.array(scipy.signal.resample(signal2, nb_samples), dtype=np.float32)
+
+                elif self.features == 'gcc-phat':
+                    window_hanning = np.hanning(fs)
+                    delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, self.max_tau,
+                                              n_delay=N_DELAY)
+                    input_x = np.expand_dims(delay, axis=-1)
+                else:
+                    input_x = np.stack((signal1, signal2), axis=-1)
 
             # Store sample
             X[i,] = input_x

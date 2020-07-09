@@ -269,7 +269,7 @@ def filter_voice(signal, sample_rate, mode=3):
             match += 1
 
     percentage_voice = match * 100 / len(frames)
-    return percentage_voice > 50
+    return percentage_voice > THRESHOLD_VOICE
 
 
 def read_wave(path):
@@ -505,8 +505,6 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
             # signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
             # signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
 
-            signal1 = butter_bandpass_filter(signal1, 100, 1000, RESAMPLING_F)
-            signal2 = butter_bandpass_filter(signal2, 100, 1000, RESAMPLING_F)
 
             input_x = np.stack((signal1, signal2), axis=-1)
 
@@ -522,13 +520,13 @@ def get_callbacks():
     checkpoint_path = "/tmp/training_2/cp-{epoch:04d}.ckpt"
 
     return [
-        tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30),
         tf.keras.callbacks.TensorBoard("data/log"),
         tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_path,
             verbose=1,
             save_weights_only=True,
-            period=20)
+            period=10)
     ]
 
 

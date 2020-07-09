@@ -4,7 +4,6 @@ from CONFIG import *
 from models import *
 import tensorflow as tf
 from dataGenerator import DataGenerator
-
 random_state = 42
 
 
@@ -15,7 +14,7 @@ def get_datasets(df_input, val=False):
     df_test = df_test.reset_index(drop=True)
 
     if val:
-        df_val = df_train.sample(frac=0.1, random_state=random_state)
+        df_val = df_train.sample(frac=0.2, random_state=random_state)
         df_train = df_train.drop(df_val.index).reset_index(drop=True)
         df_val = df_val.reset_index(drop=True)
 
@@ -42,9 +41,10 @@ def main(df_input):
               'shuffle': True}
 
     # Define train and test generators
-    df_train, df_test = get_datasets(df_input)
+    df_train, df_val, df_test = get_datasets(df_input, True)
 
     training_generator = DataGenerator(df_train, FEATURE, output_shape, **params)
+    val_generator = DataGenerator(df_val, FEATURE, output_shape, **params)
     test_generator = DataGenerator(df_test, FEATURE, output_shape, **params)
 
     # Define the model
@@ -61,7 +61,7 @@ def main(df_input):
                   loss='categorical_crossentropy',
                   metrics=['categorical_accuracy'])
 
-    model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS)
+    model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=val_generator)
 
     # Re-evaluate the model
     los, acc = model.evaluate(test_generator, verbose=2)
