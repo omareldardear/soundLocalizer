@@ -4,8 +4,9 @@ from CONFIG import *
 from models import *
 import tensorflow as tf
 from dataGenerator import DataGenerator
-random_state = 42
+import argparse
 
+random_state = 42
 
 
 def get_datasets(df_input, val=False):
@@ -14,11 +15,11 @@ def get_datasets(df_input, val=False):
     df_test = df_test.reset_index(drop=True)
 
     if val:
-        df_val = df_train.sample(frac=0.2, random_state=random_state)
+        df_val = df_train.sample(frac=0.1, random_state=random_state)
         df_train = df_train.drop(df_val.index).reset_index(drop=True)
         df_val = df_val.reset_index(drop=True)
 
-        return df_train, df_val, df_train
+        return df_train, df_val, df_test
 
     return df_train, df_test
 
@@ -52,7 +53,7 @@ def main(df_input):
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
-        decay_steps=500,
+        decay_steps=800,
         decay_rate=0.94,
         name="lr_decay"
     )
@@ -70,6 +71,16 @@ def main(df_input):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--azimuth_resolution", type=int, default=-1,
+                        help="Angle resolution for azimuth")
+
+    parser_args = parser.parse_args()
     df = pd.read_csv(PATH_DATASET)
+
+    if parser_args.azimuth_resolution:
+        df['labels'] = (df['azimuth'] + abs(df['azimuth'].min()))
+        df['labels'] = df['labels'] // parser_args.azimuth_resolution
+
     df = df.sample(frac=1).reset_index(drop=True)
     main(df)

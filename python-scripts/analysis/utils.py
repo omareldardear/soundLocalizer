@@ -508,6 +508,7 @@ def sound_location_generator(df_dataset, labels, features='gcc-phat'):
 
             input_x = np.stack((signal1, signal2), axis=-1)
 
+
             yield input_x , np.squeeze(azimuth_location)
 
 
@@ -520,7 +521,7 @@ def get_callbacks():
     checkpoint_path = "/tmp/training_2/cp-{epoch:04d}.ckpt"
 
     return [
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=15),
         tf.keras.callbacks.TensorBoard("data/log"),
         tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_path,

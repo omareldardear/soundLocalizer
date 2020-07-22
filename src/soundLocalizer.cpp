@@ -450,7 +450,6 @@ bool soundLocalizerModule::updateModule() {
         if (res_angle > -1 && process) {
 
             process = false;
-            saveAudio("stop");
 
             if (lookAngle(res_angle)) {
                 // flush the port
@@ -496,6 +495,8 @@ bool soundLocalizerModule::updateModule() {
                     }
 
                     if (soundRecorderClientRPC.getOutputCount()) {
+                        saveAudio("stop");
+
                         saveAudio("save");
                         saveAudio("start");
 
@@ -508,7 +509,7 @@ bool soundLocalizerModule::updateModule() {
                 else{
                     yInfo("No face found");
                     saveAudio("drop");
-                    lookAngle(150);
+//                    lookAngle(150);
                     enableAudioRecording=true;
 
                 }
@@ -643,9 +644,9 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     yarp::sig::Vector ang(3);
 
     // Right source
-    if ( angle < 144) {
+    if ( angle < 154) {
 
-        ang[0] = +80.0;                   // azimuth-component [deg]
+        ang[0] = +70.0;                   // azimuth-component [deg]
         ang[1] = +0.0;                   // elevation-component [deg]
         ang[2] = +0.5;                   // vergence-component [deg]
         drawOnRight = true;
@@ -653,7 +654,7 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     }
 
         // Center source
-    else if (angle >= 144 && angle < 250) {
+    else if (angle >= 154 && angle < 260) {
         ang[0] = 0.0;                   // azimuth-component [deg]
         ang[1] = 0.0;                   // elevation-component [deg]
         ang[2] = 0.5;                   // vergence-component [deg]
@@ -662,7 +663,7 @@ bool soundLocalizerModule::lookAngle(const int &angle) {
     }
 
         // Left source
-    else if (angle >= 250 ) {
+    else if (angle >= 260 ) {
         ang[0] = -50.0;                   // azimuth-component [deg]
         ang[1] = 0.0;                   // elevation-component [deg]
         ang[2] = 0.5;                   // vergence-component [deg]

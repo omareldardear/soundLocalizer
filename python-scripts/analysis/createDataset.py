@@ -89,11 +89,11 @@ def create_chunk_dataset(df, output_dir, length_audio):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for index, item in tqdm(df.iterrows()):
+    for index, item in df.iterrows():
         audio_filename = item['audio_filename']
         sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=length_audio)
 
-        for j , (signal1, signal2) in enumerate(zip(chunks_channel1, chunks_channel2)):
+        for j , (signal1, signal2) in tqdm(enumerate(zip(chunks_channel1, chunks_channel2))):
             filename = str(index) + '-' + str(j) + '_' + str(item['subject_id']) + '.wav'
             filename = os.path.join(output_dir, filename)
 
