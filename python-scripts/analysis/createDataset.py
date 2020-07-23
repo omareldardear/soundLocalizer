@@ -36,11 +36,14 @@ def create_chunk_audio(df, output_dir, length_audio):
             if not filter_voice(signal1, sample_rate):
                 print(f"{filename} not containing voice")
 
-
             else:
+
                 new_df = new_df.append(item, ignore_index=True)
                 new_df.at[i, 'audio_filename'] = filename
-                scipy.io.wavfile.write(filename_write, sample_rate, data)
+
+                if not os.path.exists(filename):
+                    scipy.io.wavfile.write(filename_write, sample_rate, data)
+
                 i += 1
 
     new_df.to_csv("chunck_dataset-{}.csv".format(length_audio), index=False)
@@ -49,18 +52,18 @@ def create_chunk_audio(df, output_dir, length_audio):
 
 
 def create_gammatone(filename):
+    if not os.path.exists(filename.split('.wav')[0]):
 
-    fs, signal =  scipy.io.wavfile.read(filename, "wb",)
+        fs, signal = scipy.io.wavfile.read(filename, "wb", )
 
-    signal1 = signal[:, 0]
-    signal2 = signal[:, 1]
+        signal1 = signal[:, 0]
+        signal2 = signal[:, 1]
 
-    gcc, delay = gcc_gammatoneFilter(signal1, signal2, fs, NUM_BANDS, N_DELAY)
-    pickle_filename = filename.split('.wav')[0]
-    pickle.dump(gcc, open(pickle_filename, "wb"))
+        gcc, delay = gcc_gammatoneFilter(signal1, signal2, fs, NUM_BANDS, N_DELAY)
+        pickle_filename = filename.split('.wav')[0]
+        pickle.dump(gcc, open(pickle_filename, "wb"))
 
     return True
-
 
 
 def process_subject(path_subject, subject_id):
@@ -102,6 +105,20 @@ def process_subject(path_subject, subject_id):
     df_data.columns = COLUMNS_DATA
 
     return df_data
+
+
+def _apply_df(args):
+    df, func, kwargs = args
+    return df.apply(func, **kwargs)
+
+
+def apply_by_multiprocessing(df, func, **kwargs):
+    workers = kwargs.pop('workers')
+    pool = multiprocessing.Pool(processes=workers)
+    result = pool.map(_apply_df, [(d, func, kwargs)
+                                  for d in np.array_split(df, workers)])
+    pool.close()
+    return True
 
 
 def main(args):
@@ -155,8 +172,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_path", type=str, default='/tmp',
                         help="length of the chunk audio")
 
-    parser.add_argument("--gammatone",  help="Enable gammatone filter processing", action="store_true")
-
+    parser.add_argument("--gammatone", help="Enable gammatone filter processing", action="store_true")
 
     parser_args = parser.parse_args()
 
@@ -167,13 +183,11 @@ if __name__ == '__main__':
 
     elif parser_args.gammatone and parser_args.dataset:
         df = pd.read_csv(parser_args.dataset)
-        num_cores = multiprocessing.cpu_count()
-        pool = multiprocessing.Pool(processes=num_cores * 2)
+        num_cores = multiprocessing.cpu_count() - 1
+        pool = multiprocessing.Pool(processes=num_cores)
+        df_filename = df['audio_filename']
 
-        for _, item in tqdm(df.iterrows()):
-            filename = item['audio_filename']
-            pool.apply(create_gammatone, args=(filename,))
-
+        apply_by_multiprocessing(df_filename, create_gammatone, workers=num_cores)
 
     else:
         main(parser_args)
