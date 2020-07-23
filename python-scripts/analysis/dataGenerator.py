@@ -5,10 +5,11 @@ import scipy.signal
 from utils import gcc_phat, gcc_gammatoneFilter
 from CONFIG import *
 import pickle
+import os
 
 class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, dataFrame, features, num_classe, batch_size=32, dim=(32,32,32), n_channels=1,
+    def __init__(self, dataFrame, data_directory, features, num_classe, batch_size=32, dim=(32,32,32), n_channels=1,
                  resample=0, shuffle=True):
 
         'Initialization'
@@ -23,6 +24,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.on_epoch_end()
         self.resampling = resample
         self.features = features
+        self.path_data = data_directory
 
         self.max_tau = DISTANCE_MIC / 343.2
 
@@ -65,12 +67,16 @@ class DataGenerator(tf.keras.utils.Sequence):
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
             if self.features == 'gammatone':
-                input_x = pickle.load(open(ID.split('.wav')[0], 'rb'))
+                filename = os.path.join(self.path_data, ID.split('.wav')[0])
+
+                input_x = pickle.load(open(filename, 'rb'))
                 input_x = input_x.reshape(input_x.shape[1], input_x.shape[0])
                 input_x = np.expand_dims(input_x, axis=-1)
 
             else:
-                fs, signal = wavfile.read(ID, "wb")
+                filename = os.path.join(self.path_data, ID)
+
+                fs, signal = wavfile.read(filename, "wb")
                 signal1 = signal[:, 0]
                 signal2 = signal[:, 1]
 

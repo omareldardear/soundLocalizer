@@ -37,6 +37,7 @@ def main(df_input):
     # Model parameters
     params = {'dim': INPUT_SHAPE,
               'batch_size': BATCH_SIZE,
+              'data_directory': PATH_DATA,
               'n_channels': 1,
               'resample': RESAMPLING_F,
               'shuffle': True}
@@ -74,6 +75,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--azimuth_resolution", type=int, default=-1,
                         help="Angle resolution for azimuth")
+
 
     parser_args = parser.parse_args()
     df = pd.read_csv(PATH_DATASET)
