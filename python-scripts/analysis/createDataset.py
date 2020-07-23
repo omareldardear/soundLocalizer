@@ -41,7 +41,7 @@ def create_chunk_audio(df, output_dir, length_audio):
                 new_df = new_df.append(item, ignore_index=True)
                 new_df.at[i, 'audio_filename'] = filename
 
-                if not os.path.exists(filename):
+                if not os.path.exists(filename_write):
                     scipy.io.wavfile.write(filename_write, sample_rate, data)
 
                 i += 1
