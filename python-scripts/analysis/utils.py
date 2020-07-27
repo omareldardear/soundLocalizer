@@ -114,7 +114,7 @@ def padarray(A, size):
     return np.pad(A, pad_width=(0, t), mode='constant')
 
 
-def split_audio_chunks(audio_filename, size_chunks=500):
+def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
     fs, signal = wavfile.read(audio_filename, "wb", )
 
     signal1 = signal[:, 0]
@@ -131,7 +131,7 @@ def split_audio_chunks(audio_filename, size_chunks=500):
         chunk_signal1.append(signal1[index_start:index_start + length_chunk])
         chunk_signal2.append(signal2[index_start:index_start + length_chunk])
 
-        index_start += length_chunk
+        index_start += overlap
 
 
 

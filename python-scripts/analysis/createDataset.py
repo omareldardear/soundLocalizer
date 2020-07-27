@@ -2,7 +2,7 @@ import glob
 import pandas as pd
 import argparse
 import sys, os
-from utils import split_audio_chunks, filter_voice, gcc_gammatoneFilter
+from utils import split_audio_chunks, filter_voice, ToolGammatoneFb
 import scipy.io.wavfile
 import numpy as np
 from CONFIG import *
@@ -53,15 +53,19 @@ def create_chunk_audio(df, output_dir, length_audio):
 
 def create_gammatone(filename):
     if not os.path.exists(filename.split('.wav')[0]):
-
+        filename = os.path.join(PATH_DATA, filename)
         fs, signal = scipy.io.wavfile.read(filename, "wb", )
 
         signal1 = signal[:, 0]
         signal2 = signal[:, 1]
 
-        gcc, delay = gcc_gammatoneFilter(signal1, signal2, fs, NUM_BANDS, N_DELAY)
+        gamma_sig1 = ToolGammatoneFb(signal1, fs, iNumBands=NUM_BANDS)
+        gamma_sig2 = ToolGammatoneFb(signal2, fs, iNumBands=NUM_BANDS)
+
+        gammatone = np.stack((gamma_sig1, gamma_sig2), axis=-1)
+
         pickle_filename = filename.split('.wav')[0]
-        pickle.dump(gcc, open(pickle_filename, "wb"))
+        pickle.dump(gammatone, open(pickle_filename, "wb"))
 
     return True
 
