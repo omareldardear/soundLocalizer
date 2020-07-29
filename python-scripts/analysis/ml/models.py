@@ -29,7 +29,7 @@ def get_model_cnn(output_shape):
 
 
         tf.keras.layers.Reshape((-1, 128)),
-        #
+
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True)),
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
 

@@ -1,27 +1,10 @@
 import pandas as pd
-from utils import *
+from utils_ml import *
 from CONFIG import *
 from models import *
 import tensorflow as tf
 from dataGenerator import DataGenerator
 import argparse
-
-random_state = 42
-
-
-def get_datasets(df_input, val=False):
-    df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
-    df_train = df_input.drop(df_test.index).reset_index(drop=True)
-    df_test = df_test.reset_index(drop=True)
-
-    if val:
-        df_val = df_train.sample(frac=0.1, random_state=random_state)
-        df_train = df_train.drop(df_val.index).reset_index(drop=True)
-        df_val = df_val.reset_index(drop=True)
-
-        return df_train, df_val, df_test
-
-    return df_train, df_test
 
 ###################################################################################
 #                                   MAIN PROCESS                                  #
@@ -37,17 +20,16 @@ def main(df_input):
     # Model parameters
     params = {'dim': INPUT_SHAPE,
               'batch_size': BATCH_SIZE,
-              'data_directory': PATH_DATA,
-              'n_channels': 1,
+              'n_channels': NB_CHANNELS,
               'resample': RESAMPLING_F,
               'shuffle': True}
 
     # Define train and test generators
-    df_train, df_val, df_test = get_datasets(df_input, True)
+    df_train, df_val, df_test = get_datasets(df_input, TEST_SUBJECTS, True)
 
-    training_generator = DataGenerator(df_train, FEATURE, output_shape, **params)
-    val_generator = DataGenerator(df_val, FEATURE, output_shape, **params)
-    test_generator = DataGenerator(df_test, FEATURE, output_shape, **params)
+    training_generator = DataGenerator(df_train, PATH_DATA, FEATURE, output_shape, **params)
+    val_generator = DataGenerator(df_val, PATH_DATA, FEATURE, output_shape, **params)
+    test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params)
 
     # Define the model
     model = get_model_cnn(output_shape)

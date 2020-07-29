@@ -1,21 +1,19 @@
 import scipy.io.wavfile as wavfile
 import webrtcvad
 from scipy.signal import lfilter, hilbert, filtfilt, butter, lfilter
-import tensorflow as tf
 
 import collections
 import contextlib
 import wave
 import librosa
 import numpy as np
-import scipy.signal
 
 from CONFIG import *
+
 
 #########################################################################################
 # FEATURES EXTRACTIONS FUNCTIONS                                                        #
 #########################################################################################
-
 
 
 def FilteredSignal(signal, fs, cutoff):
@@ -38,9 +36,6 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
 
 
-
-
-
 def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
     """
     Use librosa to compute MFCC features from an audio array with sample rate and number_mfcc
@@ -52,7 +47,6 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
     mfcc_feat = librosa.feature.mfcc(sample, sr=sample_rate, n_mfcc=nb_mfcc_features)
     mfcc_feat = np.transpose(mfcc_feat)
     return mfcc_feat
-
 
 
 def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
@@ -75,7 +69,6 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
     if max_tau:
         max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
 
-
     cc = np.concatenate((cc[-max_shift:], cc[:max_shift + 1]))
 
     ind = np.argpartition(cc, -n_delay)[-n_delay:]
@@ -83,7 +76,6 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
     center_gcc = len(cc) // 2
 
     cc = np.concatenate(([cc[(center_gcc - n_delay):center_gcc], cc[:center_gcc:(center_gcc + n_delay - 1)]]))
-
 
     delay = []
 
@@ -133,8 +125,6 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
 
         index_start += overlap
 
-
-
     pad_sig1 = padarray(signal1[index_start:], length_chunk)
     pad_sig2 = padarray(signal2[index_start:], length_chunk)
 
@@ -142,6 +132,7 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
     chunk_signal2.append(pad_sig2)
 
     return fs, chunk_signal1, chunk_signal2
+
 
 def gcc_gammatoneFilter(sig1, sig2, fs, nb_bands, ndelay):
     gamma_sig1 = ToolGammatoneFb(sig1, fs, iNumBands=nb_bands)
@@ -151,18 +142,17 @@ def gcc_gammatoneFilter(sig1, sig2, fs, nb_bands, ndelay):
     delay_features = []
     for filter1, filter2 in zip(gamma_sig1, gamma_sig2):
         delay, gcc = gcc_phat(filter1, filter2, fs, n_delay=ndelay)
+        gcc = gcc * 10
         gcc_features.append(gcc)
         delay_features.append(delay)
 
     gcc_features = np.array(gcc_features)
     delay_features = np.array(delay_features)
-    return  gcc_features, delay_features
-
-
+    return gcc_features, delay_features
 
 
 # see function mfcc.m from Slaneys Auditory Toolbox (Matlab)
-def ToolGammatoneFb(afAudioData, f_s, iNumBands=26, f_low=100):
+def ToolGammatoneFb(afAudioData, f_s, iNumBands=26, f_low=1500):
     # initialization
     fEarQ = 9.26449
     fBW = 24.7
@@ -256,7 +246,6 @@ def getCoeffs(f_c, B, T):
 #########################################################################################
 
 def filter_voice(signal, sample_rate, mode=3):
-
     signal = np.ascontiguousarray(signal)
     vad = webrtcvad.Vad(mode)
     frames = frame_generator(20, signal, sample_rate)
@@ -394,204 +383,3 @@ def vad_collector(sample_rate, frame_duration_ms,
         yield b''.join([f.bytes for f in voiced_frames])
 
 
-#########################################################################################
-# DATASET GENERATOR FUNCTIONS                                                           #
-#########################################################################################
-def sound_location_generator_bis(df_dataset, labels, features='gcc-phat'):
-    """
-    Create a generator from a dataframe with multiple outputs
-    :param df_dataset: Input dataset
-    :param labels:
-    :param features: type of features to compute
-    :return:
-    """
-
-    for index, item in df_dataset.iterrows():
-        audio_filename = item['audio_filename']
-        azimuth_location = labels[index]
-        head_position_pan = item['joint2']
-        head_position_tilt = item['joint0']
-
-        fs, signal = wavfile.read(audio_filename, "wb")
-        signal1 = signal[:, 0]
-        signal2 = signal[:, 1]
-
-        number_of_samples = round(len(signal1) * float(RESAMPLING_F) / fs)
-        signal1 = np.array(scipy.signal.resample(signal1, number_of_samples), dtype=np.float32)
-        signal2 = np.array(scipy.signal.resample(signal2, number_of_samples), dtype=np.float32)
-
-        input_head = np.array([head_position_pan, head_position_tilt])
-        input_head = np.expand_dims(input_head, axis=-1)
-
-        if features == 'gcc-phat':
-            window_hanning = np.hanning(number_of_samples)
-            input_x, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau, n_delay=N_DELAY)
-            input_x = np.expand_dims(input_x, axis=-1)
-
-            yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
-
-        elif features == 'gammatone':
-            input_x = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS)
-            input_x = input_x.reshape(input_x.shape[1], input_x.shape[0])
-            # input_x = np.expand_dims(input_x, axis=-1)
-
-            yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
-
-        elif features == 'mfcc':
-            signal1 = get_MFCC(signal1, RESAMPLING_F)
-            signal2 = get_MFCC(signal2, RESAMPLING_F)
-            input_x = np.stack((signal1, signal2), axis=2)
-
-            yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
-
-
-        else:
-            # signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
-            # signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
-            input_x = np.stack((signal1, signal2), axis=-1)
-
-            yield {"input_1": input_x, "input_2": input_head}, np.squeeze(azimuth_location)
-
-
-def sound_location_generator(df_dataset, labels, features='gcc-phat'):
-    """
-       Create a generator from a dataframe with simple outputs
-       :param df_dataset: Input dataset
-       :param labels:
-       :param features: type of features to compute
-       :return:
-       """
-    for index, item in df_dataset.iterrows():
-        audio_filename = item['audio_filename']
-        azimuth_location = labels[index]
-        head_position_pan = item['joint2']
-        head_position_tilt = item['joint0']
-
-        fs, signal = wavfile.read(audio_filename, "wb")
-        signal1 = signal[:, 0]
-        signal2 = signal[:, 1]
-
-        number_of_samples = round(len(signal1) * float(RESAMPLING_F) / fs)
-        signal1 = np.array(scipy.signal.resample(signal1, number_of_samples), dtype=np.float32)
-        signal2 = np.array(scipy.signal.resample(signal2, number_of_samples), dtype=np.float32)
-
-        input_head = np.array([head_position_pan, head_position_tilt])
-        input_head = np.expand_dims(input_head, axis=-1)
-
-        if features == 'gcc-phat':
-            window_hanning = np.hanning(number_of_samples)
-            delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, RESAMPLING_F, max_tau, n_delay=N_DELAY)
-
-            input_x = np.expand_dims(delay, axis=-1)
-
-            yield input_x , np.squeeze(azimuth_location)
-
-        elif features == 'gammatone':
-            input_x = gcc_gammatoneFilter(signal1, signal2, RESAMPLING_F, NUM_BANDS, N_DELAY)
-            input_x, gcc = input_x.reshape(input_x.shape[1], input_x.shape[0])
-            # input_x = np.expand_dims(input_x, axis=-1)
-
-            input_x, np.squeeze(azimuth_location)
-
-        elif features == 'mfcc':
-            signal1 = get_MFCC(signal1, RESAMPLING_F)
-            signal2 = get_MFCC(signal2, RESAMPLING_F)
-            input_x = np.stack((signal1, signal2), axis=2)
-
-            yield input_x , np.squeeze(azimuth_location)
-
-
-        else:
-            # signal1 = np.concatenate((signal1, [head_position_pan, head_position_tilt]))
-            # signal2 = np.concatenate((signal2, [head_position_pan, head_position_tilt]))
-
-
-            input_x = np.stack((signal1, signal2), axis=-1)
-
-
-            yield input_x , np.squeeze(azimuth_location)
-
-
-def get_callbacks():
-    """
-    Get callback function for the training
-    :return: Earlystopping, Tensorboard-log, Saving model
-    """
-    # Include the epoch in the file name (uses `str.format`)
-    checkpoint_path = "/tmp/training_2/cp-{epoch:04d}.ckpt"
-
-    return [
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=15),
-        tf.keras.callbacks.TensorBoard("data/log"),
-        tf.keras.callbacks.ModelCheckpoint(
-            filepath=checkpoint_path,
-            verbose=1,
-            save_weights_only=True,
-            period=10)
-    ]
-
-
-def get_generator_dataset_bis(df_input, output_dim):
-    """
-    Create val, train and test  tf.generator_dataset
-    :param df_input:
-    :param output_dim:
-    :return:
-    """
-    labels = tf.keras.utils.to_categorical(df_input['labels'])
-
-    df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
-    df_train = df_input.drop(df_test.index)
-
-    df_val = df_train.sample(frac=0.1, random_state=random_state)
-    df_train = df_train.drop(df_val.index)
-
-    ds_train = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator_bis(df_train, labels, FEATURE),
-        output_types=({"input_1": tf.int64, "input_2": tf.int64}, tf.int64),
-        output_shapes=({"input_1": INPUT_SHAPE, "input_2": (None, 1)}, output_dim)
-    ).shuffle(500)
-
-    ds_val = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator_bis(df_val, labels, FEATURE),
-        output_types=({"input_1": tf.int64, "input_2": tf.int64}, tf.int64),
-        output_shapes=({"input_1": INPUT_SHAPE, "input_2": (None, 1)}, output_dim)
-    ).batch(32)
-
-    ds_test = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator_bis(df_test, labels, FEATURE),
-        output_types=({"input_1": tf.int64, "input_2": tf.int64}, tf.int64),
-        output_shapes=({"input_1": INPUT_SHAPE, "input_2": (None, 1)}, output_dim)
-    ).batch(32)
-
-    return ds_train, ds_val, ds_test
-
-
-def get_generator_dataset(df_input, output_dim):
-    labels = tf.keras.utils.to_categorical(df_input['labels'])
-
-    df_test = df_input[df_input['subject_id'].isin(TEST_SUBJECTS)]
-    df_train = df_input.drop(df_test.index).reset_index(drop=True)
-    df_test = df_test.reset_index(drop=True)
-
-    # df_val = df_train.sample(frac=0.1, random_state=random_state)
-    # df_train = df_train.drop(df_val.index)
-
-    # ds_val = tf.data.Dataset.from_generator(
-    #     lambda: sound_location_generator(df_val, labels, FEATURE),
-    #     (tf.float32, tf.int64),
-    #     (INPUT_SHAPE, output_dim)
-    # ).batch(32)
-    ds_train = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator(df_train, labels, FEATURE),
-        (tf.float32 , tf.int64),
-        (INPUT_SHAPE, output_dim)
-    ).batch(BATCH_SIZE)
-
-    ds_test = tf.data.Dataset.from_generator(
-        lambda: sound_location_generator(df_test, labels, FEATURE),
-        (tf.float32, tf.int64),
-        (INPUT_SHAPE, output_dim)
-    ).batch(1)
-
-    return ds_train, ds_test
