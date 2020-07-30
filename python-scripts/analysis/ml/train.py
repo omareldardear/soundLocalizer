@@ -6,9 +6,10 @@ import tensorflow as tf
 from dataGenerator import DataGenerator
 import argparse
 
-###################################################################################
-#                                   MAIN PROCESS                                  #
-###################################################################################
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+
 
 
 def main(df_input):
@@ -25,14 +26,13 @@ def main(df_input):
               'shuffle': True}
 
     # Define train and test generators
-    df_train, df_val, df_test = get_datasets(df_input, TEST_SUBJECTS, True)
+    df_train, df_test = get_datasets(df_input, TEST_SUBJECTS)
 
     training_generator = DataGenerator(df_train, PATH_DATA, FEATURE, output_shape, **params)
-    val_generator = DataGenerator(df_val, PATH_DATA, FEATURE, output_shape, **params)
     test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params)
 
     # Define the model
-    model = get_model_cnn(output_shape)
+    model = get_model_1dcnn_simple(output_shape)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
@@ -45,7 +45,7 @@ def main(df_input):
                   loss='categorical_crossentropy',
                   metrics=['categorical_accuracy'])
 
-    model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=val_generator)
+    model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=test_generator)
 
     # Re-evaluate the model
     los, acc = model.evaluate(test_generator, verbose=2)
@@ -55,7 +55,7 @@ def main(df_input):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--azimuth_resolution", type=int, default=-1,
+    parser.add_argument("--azimuth_resolution", type=int, default=0,
                         help="Angle resolution for azimuth")
 
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     df = pd.read_csv(PATH_DATASET)
 
     if parser_args.azimuth_resolution:
-        df['labels'] = (df['azimuth'] + abs(df['azimuth'].min()))
+        df['labels'] = (df['azimuth'] + 90)
         df['labels'] = df['labels'] // parser_args.azimuth_resolution
 
     df = df.sample(frac=1).reset_index(drop=True)

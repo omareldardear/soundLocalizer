@@ -22,7 +22,7 @@ def get_datasets(df_input, test_subjects, val=False):
 
 
 
-def get_callbacks(m_patience=15):
+def get_callbacks(m_patience=5):
     """
     Get callback function for the training
     :return: Earlystopping, Tensorboard-log, Saving model

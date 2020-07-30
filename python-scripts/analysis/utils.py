@@ -1,6 +1,6 @@
 import scipy.io.wavfile as wavfile
 import webrtcvad
-from scipy.signal import lfilter, hilbert, filtfilt, butter, lfilter
+from scipy.signal import filtfilt, butter, lfilter
 
 import collections
 import contextlib
@@ -8,11 +8,12 @@ import wave
 import librosa
 import numpy as np
 
-from CONFIG import *
+from ml.CONFIG import *
+
 
 
 #########################################################################################
-# FEATURES EXTRACTIONS FUNCTIONS                                                        #
+# AUDIO PROCESSING FUNCTIONS                                                            #
 #########################################################################################
 
 
@@ -36,6 +37,45 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
 
 
+
+def padarray(A, size):
+    t = size - len(A)
+    return np.pad(A, pad_width=(0, t), mode='constant')
+
+
+def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
+    fs, signal = wavfile.read(audio_filename, "wb", )
+
+    signal1 = signal[:, 0]
+    signal2 = signal[:, 1]
+
+    length_chunk = int((fs * size_chunks) / 1000)
+    overlap =  int((fs * overlap) / 1000)
+
+    index_start = 0
+    chunk_signal1 = []
+    chunk_signal2 = []
+
+    while (index_start + length_chunk) < len(signal1):
+        chunk_signal1.append(signal1[index_start:index_start + length_chunk])
+        chunk_signal2.append(signal2[index_start:index_start + length_chunk])
+
+        index_start += overlap
+
+    pad_sig1 = padarray(signal1[index_start:], length_chunk)
+    pad_sig2 = padarray(signal2[index_start:], length_chunk)
+
+    chunk_signal1.append(pad_sig1)
+    chunk_signal2.append(pad_sig2)
+
+    return fs, chunk_signal1, chunk_signal2
+
+
+
+#########################################################################################
+# FEATURES EXTRACTIONS FUNCTIONS                                                        #
+#########################################################################################
+
 def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
     """
     Use librosa to compute MFCC features from an audio array with sample rate and number_mfcc
@@ -49,7 +89,7 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
     return mfcc_feat
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=1, n_delay=1):
     '''
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
@@ -69,23 +109,16 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=1):
     if max_tau:
         max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
 
-    cc = np.concatenate((cc[-max_shift:], cc[:max_shift + 1]))
-
-    ind = np.argpartition(cc, -n_delay)[-n_delay:]
-
-    center_gcc = len(cc) // 2
-
-    cc = np.concatenate(([cc[(center_gcc - n_delay):center_gcc], cc[:center_gcc:(center_gcc + n_delay - 1)]]))
+    cc = np.concatenate((cc[-max_shift:], cc[:max_shift+1]))
 
     delay = []
 
-    for i in ind:
-        # find max cross correlation index
-        shift = i - max_shift
-        tau = shift / float(interp * fs)
-        delay.append(tau)
+    # find max cross correlation index
+    shift = np.argmax(cc) - max_shift
 
-    return delay, cc
+    tau = shift / float(interp * fs)
+
+    return [tau], cc
 
 
 def concat_fourier_transform(sig1, sig2, n=512):
@@ -99,39 +132,6 @@ def concat_fourier_transform(sig1, sig2, n=512):
     stack_fft = np.vstack((np.array(fft_phase), np.array(fft_phase2)))
 
     return stack_fft
-
-
-def padarray(A, size):
-    t = size - len(A)
-    return np.pad(A, pad_width=(0, t), mode='constant')
-
-
-def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
-    fs, signal = wavfile.read(audio_filename, "wb", )
-
-    signal1 = signal[:, 0]
-    signal2 = signal[:, 1]
-
-    length_chunk = int((fs * size_chunks) / 1000)
-
-    index_start = 0
-
-    chunk_signal1 = []
-    chunk_signal2 = []
-
-    while (index_start + length_chunk) < len(signal1):
-        chunk_signal1.append(signal1[index_start:index_start + length_chunk])
-        chunk_signal2.append(signal2[index_start:index_start + length_chunk])
-
-        index_start += overlap
-
-    pad_sig1 = padarray(signal1[index_start:], length_chunk)
-    pad_sig2 = padarray(signal2[index_start:], length_chunk)
-
-    chunk_signal1.append(pad_sig1)
-    chunk_signal2.append(pad_sig2)
-
-    return fs, chunk_signal1, chunk_signal2
 
 
 def gcc_gammatoneFilter(sig1, sig2, fs, nb_bands, ndelay):
@@ -246,14 +246,17 @@ def getCoeffs(f_c, B, T):
 #########################################################################################
 
 def filter_voice(signal, sample_rate, mode=3):
+    signal = butter_bandpass_filter(signal, 1500, 5000, sample_rate, 1)
+    signal = np.array(signal, dtype=np.int16)
+
     signal = np.ascontiguousarray(signal)
     vad = webrtcvad.Vad(mode)
-    frames = frame_generator(20, signal, sample_rate)
+    frames = frame_generator(10, signal, sample_rate)
     frames = list(frames)
 
     match = 0
     for frame in frames:
-        is_speech = vad.is_speech(frame.bytes, sample_rate)
+        is_speech = vad.is_speech(frame.bytes, 48000)
         if is_speech:
             match += 1
 
@@ -306,7 +309,7 @@ def frame_generator(frame_duration_ms, audio, sample_rate):
     offset = 0
     timestamp = 0.0
     duration = (float(n) / sample_rate) / 2.0
-    while offset + n < len(audio):
+    while offset + n < len(audio) -1:
         yield Frame(audio[offset:offset + n], timestamp, duration)
         timestamp += duration
         offset += n
@@ -381,5 +384,6 @@ def vad_collector(sample_rate, frame_duration_ms,
     # yield it.
     if voiced_frames:
         yield b''.join([f.bytes for f in voiced_frames])
+
 
 

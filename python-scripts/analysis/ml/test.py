@@ -1,6 +1,5 @@
 import pandas as pd
-from utils import *
-from CONFIG import *
+from ml.CONFIG import *
 from models import *
 from dataGenerator import DataGenerator
 import argparse
