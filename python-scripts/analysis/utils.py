@@ -7,6 +7,7 @@ import contextlib
 import wave
 import librosa
 import numpy as np
+import math
 
 from ml.CONFIG import *
 
@@ -15,6 +16,13 @@ from ml.CONFIG import *
 #########################################################################################
 # AUDIO PROCESSING FUNCTIONS                                                            #
 #########################################################################################
+
+def get_power(signal):
+    power = 0
+
+
+    return math.sqrt((power / len(signal)))
+
 
 
 def FilteredSignal(signal, fs, cutoff):
