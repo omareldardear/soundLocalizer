@@ -82,27 +82,27 @@ def get_model_1dcnn_simple(output_shape):
 
         tf.keras.layers.Conv1D(filters=96, kernel_size=7, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.BatchNormalization(),
+
         tf.keras.layers.MaxPooling1D(7),
 
         tf.keras.layers.Conv1D(filters=96, kernel_size=7, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.BatchNormalization(),
+        #tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(7),
 
         tf.keras.layers.Conv1D(filters=128, kernel_size=5, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.BatchNormalization(),
+        #tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(5),
 
         tf.keras.layers.Conv1D(filters=128, kernel_size=5, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.BatchNormalization(),
+        #tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling1D(5),
 
-        tf.keras.layers.Conv1D(filters=128, kernel_size=3, activation='relu', padding='same',
+        tf.keras.layers.Conv1D(filters=256, kernel_size=3, activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.BatchNormalization(),
+        #tf.keras.layers.BatchNormalization(),
 
         # tf.keras.layers.Reshape((-1, 128)),
 

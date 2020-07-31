@@ -9,7 +9,8 @@ current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 from  utils import gcc_phat, butter_lowpass_filter
-from ml.CONFIG import *
+from CONFIG import *
+
 import pickle
 import os
 

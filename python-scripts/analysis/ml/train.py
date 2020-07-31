@@ -1,6 +1,12 @@
 import pandas as pd
 from utils_ml import *
+
+import os,sys,inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
 from CONFIG import *
+
 from models import *
 import tensorflow as tf
 from dataGenerator import DataGenerator
@@ -43,7 +49,7 @@ def main(df_input):
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
                   loss='categorical_crossentropy',
-                  metrics=['categorical_accuracy'])
+                  metrics=['accuracy'])
 
     model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=test_generator)
 
