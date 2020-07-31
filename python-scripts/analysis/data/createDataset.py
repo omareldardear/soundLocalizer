@@ -1,8 +1,10 @@
 import glob
+
+import librosa
 import pandas as pd
 import argparse
 import sys, os
-from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter
+from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter
 import scipy.io.wavfile
 import numpy as np
 from ml.CONFIG import *
@@ -57,6 +59,20 @@ def create_chunk_audio(df, output_dir, length_audio):
     return df
 
 
+def create_mel_spectogram(filename):
+    if not os.path.exists(filename.split('.wav')[0]):
+        filename = os.path.join(PATH_DATA, filename)
+        fs, signal = scipy.io.wavfile.read(filename, "wb", )
+
+        signal1 = signal[:, 0]
+
+        mel_spec = librosa.feature.melspectrogram(signal1, fs)
+
+        pickle_filename = filename.split('.wav')[0]
+        pickle.dump(mel_spec, open(pickle_filename, "wb"))
+
+    return True
+
 def create_gammatone(filename):
     """
     Create Gammatone filter bank and apply it to a wav file define by filename
@@ -69,6 +85,9 @@ def create_gammatone(filename):
 
         signal1 = signal[:, 0]
         signal2 = signal[:, 1]
+
+        signal1 = butter_lowpass_filter(signal1, 1000, fs)
+        signal2 = butter_lowpass_filter(signal2, 1000, fs)
 
         gamma_sig1 = ToolGammatoneFb(signal1, fs, iNumBands=NUM_BANDS)
         gamma_sig2 = ToolGammatoneFb(signal2, fs, iNumBands=NUM_BANDS)

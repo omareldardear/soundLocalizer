@@ -141,11 +141,9 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=1, n_delay=1):
 
     cc = np.fft.irfft(R / np.abs(R), n=(interp * n))
 
-    max_shift = int(interp * n / 2)
-    if max_tau:
-        max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
+    max_shift = int(n // 2 + 1)
 
-    cc = np.concatenate((cc[-max_shift:], cc[:max_shift+1]))
+    cc = np.concatenate((cc[-max_shift:], cc[:max_shift]))
 
     delay = []
 

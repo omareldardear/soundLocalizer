@@ -13,6 +13,8 @@ from CONFIG import *
 
 import pickle
 import os
+import librosa
+
 
 class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
@@ -94,10 +96,17 @@ class DataGenerator(tf.keras.utils.Sequence):
                     signal2 = np.array(scipy.signal.resample(signal2, nb_samples), dtype=np.float32)
                     fs = nb_samples
 
+
                 if self.features == 'gcc-phat':
                     window_hanning = np.hanning(len(signal1))
                     delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, fs, self.max_tau)
                     input_x = np.expand_dims(gcc, axis=-1)
+
+                elif self.features == 'melspec':
+                    input_x = librosa.feature.melspectrogram(signal1, fs)
+                    input_x = np.expand_dims(input_x, axis=-1)
+
+
                 else:
                     signal1 = butter_lowpass_filter(signal1, 1000, fs)
                     signal2 = butter_lowpass_filter(signal2, 1000, fs)

@@ -38,7 +38,7 @@ def main(df_input):
     test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params)
 
     # Define the model
-    model = get_model_1dcnn_simple(output_shape)
+    model = get_model_cnn(output_shape)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
@@ -51,7 +51,11 @@ def main(df_input):
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
+
     model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=test_generator)
+
+    print(model.summary())
+
 
     # Re-evaluate the model
     los, acc = model.evaluate(test_generator, verbose=2)
