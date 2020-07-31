@@ -8,7 +8,7 @@ import os,sys,inspect
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
-from  utils import gcc_phat
+from  utils import gcc_phat, butter_lowpass_filter
 from ml.CONFIG import *
 import pickle
 import os
@@ -98,6 +98,9 @@ class DataGenerator(tf.keras.utils.Sequence):
                     delay, gcc = gcc_phat(signal1 * window_hanning, signal2 * window_hanning, fs, self.max_tau)
                     input_x = np.expand_dims(gcc, axis=-1)
                 else:
+                    signal1 = butter_lowpass_filter(signal1, 1000, fs)
+                    signal2 = butter_lowpass_filter(signal2, 1000, fs)
+
                     input_x = np.stack((signal1, signal2), axis=-1)
 
             # Store sample
