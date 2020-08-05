@@ -71,8 +71,8 @@ class DataGenerator(tf.keras.utils.Sequence):
     def __data_generation(self, list_IDs_temp):
         'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Initialization
-        X = np.empty((self.batch_size, *self.dim, self.n_channels))
-        y = np.empty(self.batch_size, dtype=int)
+        X = np.empty((self.batch_size, *self.dim, self.n_channels), dtype=np.float )
+        y = np.empty(self.batch_size, dtype=np.float)
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
@@ -93,8 +93,8 @@ class DataGenerator(tf.keras.utils.Sequence):
 
                 if self.resampling:
                     nb_samples = self.resampling
-                    signal1 = np.array(scipy.signal.resample(signal1, nb_samples), dtype=np.float32)
-                    signal2 = np.array(scipy.signal.resample(signal2, nb_samples), dtype=np.float32)
+                    signal1 = np.array(scipy.signal.resample(signal1, nb_samples), dtype=np.int16)
+                    signal2 = np.array(scipy.signal.resample(signal2, nb_samples), dtype=np.int16)
                     fs = nb_samples
 
 
@@ -112,11 +112,13 @@ class DataGenerator(tf.keras.utils.Sequence):
                     thop = twin / 2
                     channels = 64
                     fmin = 20
+                    signal = signal.mean(1)
 
                     signal1 = fft_gtgram(signal1, fs, twin, thop, channels, fmin)
                     signal2 = fft_gtgram(signal2, fs, twin, thop, channels, fmin)
 
                     input_x = np.stack((signal1, signal2), axis=-1)
+
 
 
                 else:
@@ -134,5 +136,5 @@ class DataGenerator(tf.keras.utils.Sequence):
             # Store class
             y[i] = self.labels[ID]
 
-        return X, tf.keras.utils.to_categorical(y, num_classes=self.n_classes)
+        return X, y
 
