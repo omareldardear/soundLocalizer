@@ -10,6 +10,7 @@ def get_datasets(df_input, test_subjects, val=False):
     df_test = df_input[df_input['subject_id'].isin(test_subjects)]
     df_train = df_input.drop(df_test.index).reset_index(drop=True)
     df_test = df_test.reset_index(drop=True)
+    # df_train = df_train.sample(frac=0.1, random_state=random_state).reset_index(drop=True)
 
     if val:
         df_val = df_train.sample(frac=0.1, random_state=random_state)

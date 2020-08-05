@@ -6,6 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import librosa
 from librosa import display
+from gammatone.fftweight import fft_gtgram
+
+
 def test_labels_from_azimuth(min_angles):
     azimuth_1 = -87
     azimuth_2 = 65
@@ -74,17 +77,15 @@ def main():
     signal_back = signal_back[:,1]
     signal_back = np.array(signal_back, dtype=np.float32)
 
-    fs_v,  signal = scipy.io.wavfile.read("/home/jonas/CLionProjects/soundLocalizer/dataset/5.wav", "wb", )
+    fs_v,  signal = scipy.io.wavfile.read("/home/jonas/CLionProjects/soundLocalizer/5.wav", "wb", )
 
-    signal = np.array(signal, dtype=np.float32)
+    # Default gammatone-based spectrogram parameters
+    twin = 0.08
+    thop = twin / 2
+    channels = 64
+    fmin = 20
 
-
-    mel_back = librosa.feature.melspectrogram(signal_back, fs_back)
-    mel_voice = librosa.feature.melspectrogram(signal, fs_v)
-
-    display.specshow(mel_back, x_axis='time', y_axis='log')
-    plt.figure()
-    display.specshow(mel_voice, x_axis='time', y_axis='log')
+    gram  = fft_gtgram(signal, fs_v, twin, thop, channels, fmin)
 
 
     plt.show()

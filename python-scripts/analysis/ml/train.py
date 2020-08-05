@@ -48,8 +48,8 @@ def main(df_input):
     )
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
+                  loss='mean_absolute_error',
+                  metrics=['mean_absolute_error'])
 
 
     model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=test_generator)
@@ -60,7 +60,7 @@ def main(df_input):
     # Re-evaluate the model
     los, acc = model.evaluate(test_generator, verbose=2)
     print("Test model, accuracy: {:5.2f}%".format(100 * acc))
-    model.save('/tmp/data/saved_model/my_model.h5')
+    model.save(os.path.join(SAVED_MODEL_PATH, 'my_model.h5'))
 
 
 if __name__ == '__main__':
@@ -72,8 +72,9 @@ if __name__ == '__main__':
     parser_args = parser.parse_args()
     df = pd.read_csv(PATH_DATASET)
 
+    df['labels'] = (df['azimuth'] + 90)
+
     if parser_args.azimuth_resolution:
-        df['labels'] = (df['azimuth'] + 90)
         df['labels'] = df['labels'] // parser_args.azimuth_resolution
 
     df = df.sample(frac=1).reset_index(drop=True)

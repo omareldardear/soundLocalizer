@@ -14,6 +14,7 @@ from CONFIG import *
 import pickle
 import os
 import librosa
+from gammatone.fftweight import fft_gtgram
 
 
 class DataGenerator(tf.keras.utils.Sequence):
@@ -106,10 +107,24 @@ class DataGenerator(tf.keras.utils.Sequence):
                     input_x = librosa.feature.melspectrogram(signal1, fs)
                     input_x = np.expand_dims(input_x, axis=-1)
 
+                elif self.features == 'gammagram':
+                    twin = 0.08
+                    thop = twin / 2
+                    channels = 64
+                    fmin = 20
+
+                    signal1 = fft_gtgram(signal1, fs, twin, thop, channels, fmin)
+                    signal2 = fft_gtgram(signal2, fs, twin, thop, channels, fmin)
+
+                    input_x = np.stack((signal1, signal2), axis=-1)
+
 
                 else:
                     signal1 = butter_lowpass_filter(signal1, 1000, fs)
                     signal2 = butter_lowpass_filter(signal2, 1000, fs)
+
+                    signal1 = (signal1 - np.mean(signal1)) / np.std(signal1)
+                    signal2 = (signal2 - np.mean(signal2)) / np.std(signal2)
 
                     input_x = np.stack((signal1, signal2), axis=-1)
 

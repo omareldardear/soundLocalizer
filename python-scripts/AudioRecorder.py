@@ -12,16 +12,14 @@ import soundfile as sf
 yarpLog = yarp.Log()
 
 
-class ObjectDetectorModule(yarp.RFModule):
+class AudioRecorderModule(yarp.RFModule):
     """
     Description:
-        Object to read yarp image and localise and recognize objects
+        Class to record audio form the iCub head
 
     Args:
-        input_port  : input port of image
-        output_port : output port for streaming recognized names
-        display_port: output port for image with recognized objects in bouding box
-        raw_output : output the list of <bounding_box, label, probability> detected objects
+        input_port  : Audio from remoteInterface
+
     """
 
     def __init__(self):
@@ -53,7 +51,7 @@ class ObjectDetectorModule(yarp.RFModule):
 
     def configure(self, rf):
         self.module_name = rf.check("name",
-                                    yarp.Value("audioRecorder"),
+                                    yarp.Value("AudioRecorder"),
                                     "module name (string)").asString()
 
         self.saving_path = rf.check("path",
@@ -99,6 +97,15 @@ class ObjectDetectorModule(yarp.RFModule):
             reply.addString("quitting")
             return False
 
+        elif command.get(0).asString() == "help":
+            reply.addVocab(yarp.encode("many"))
+            reply.addString("AudioRecorder module commands are")
+
+            reply.addString("start : Start the recording")
+            reply.addString("stop : Stop the recording")
+            reply.addString("save : Stop and save the recording")
+            reply.addString("drop : Drop the recording")
+
         elif command.get(0).asString() == "start":
             if self.audio_in_port.getInputCount():
                 self.audio = []
@@ -125,6 +132,8 @@ class ObjectDetectorModule(yarp.RFModule):
 
         elif command.get(0).asString() == "save":
             yarpLog.info("Saving recording!")
+            self.record = False
+            self.stop_ts = time.time()
             self.save_recording()
 
             reply.addString("ok")
@@ -173,7 +182,7 @@ if __name__ == '__main__':
 
     yarp.Network.init()
 
-    objectsDetectorModule = ObjectDetectorModule()
+    audioRecorderModule = AudioRecorderModule()
 
     rf = yarp.ResourceFinder()
     rf.setVerbose(True)
@@ -181,5 +190,5 @@ if __name__ == '__main__':
     rf.setDefaultConfigFile('audioRecorder.ini')
 
     if rf.configure(sys.argv):
-        objectsDetectorModule.runModule(rf)
+        audioRecorderModule.runModule(rf)
     sys.exit()

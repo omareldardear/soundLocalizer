@@ -9,27 +9,35 @@ from tensorflow.keras.backend import squeeze
 def get_model_cnn(output_shape):
     model = tf.keras.models.Sequential([
         tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l2(0.05)),
-        tf.keras.layers.MaxPooling2D((2,2)),
+                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
 
-        tf.keras.layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding='same',
+        tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
         tf.keras.layers.MaxPooling2D((2, 2)),
 
-        tf.keras.layers.Conv2D(filters=128, kernel_size=(3, 3), activation='relu', padding='same',
+        tf.keras.layers.Conv2D(filters=64, kernel_size=(5, 5), activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
+
+        tf.keras.layers.Conv2D(filters=64, kernel_size=(5, 5), activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+
+        tf.keras.layers.Conv2D(filters=128, kernel_size=(5, 5), activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
+
+        tf.keras.layers.Conv2D(filters=128, kernel_size=(5, 5), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
         tf.keras.layers.MaxPooling2D((2, 2)),
 
 
-        tf.keras.layers.Reshape((-1, 128)),
+        #tf.keras.layers.Reshape((-1, 64)),
 
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64, return_sequences=True)),
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
+        #tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(32, return_sequences=True)),
+        #tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(32)),
 
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(256, activation="relu",  kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
-        tf.keras.layers.Dropout(rate=0.4),
-        tf.keras.layers.Dense(output_shape, activation="softmax")
+        tf.keras.layers.Dense(1, activation="linear")
     ])
 
     return model
