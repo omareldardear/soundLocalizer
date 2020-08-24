@@ -92,17 +92,17 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
     chunk_signal1 = []
     chunk_signal2 = []
 
-    while (index_start + length_chunk) < len(signal1):
+    while (index_start + length_chunk) < (fs * 3.5):
         chunk_signal1.append(signal1[index_start:index_start + length_chunk])
         chunk_signal2.append(signal2[index_start:index_start + length_chunk])
 
         index_start += overlap
 
-    pad_sig1 = padarray(signal1[index_start:], length_chunk)
-    pad_sig2 = padarray(signal2[index_start:], length_chunk)
-
-    chunk_signal1.append(pad_sig1)
-    chunk_signal2.append(pad_sig2)
+    # pad_sig1 = padarray(signal1[index_start:], length_chunk)
+    # pad_sig2 = padarray(signal2[index_start:], length_chunk)
+    #
+    # chunk_signal1.append(pad_sig1)
+    # chunk_signal2.append(pad_sig2)
 
     return fs, chunk_signal1, chunk_signal2
 
@@ -280,6 +280,8 @@ def getCoeffs(f_c, B, T):
 #########################################################################################
 
 def filter_voice(signal, sample_rate, mode=3):
+
+
     signal = butter_bandpass_filter(signal, 1500, 5000, sample_rate, 1)
     signal = np.array(signal, dtype=np.int16)
 
@@ -287,6 +289,9 @@ def filter_voice(signal, sample_rate, mode=3):
     vad = webrtcvad.Vad(mode)
     frames = frame_generator(10, signal, sample_rate)
     frames = list(frames)
+
+    if len(frames) == 0:
+        return 0
 
     match = 0
     for frame in frames:

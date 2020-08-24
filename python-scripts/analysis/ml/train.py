@@ -9,13 +9,12 @@ from CONFIG import *
 
 from models import *
 import tensorflow as tf
-from dataGenerator import DataGenerator
+from dataGenerator import DataGenerator, DataGenerator_headPose
 import argparse
 from sklearn import preprocessing
 
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
 
 
 
@@ -49,9 +48,8 @@ def main(df_input):
     )
 
     model.compile(optimizer=tf.keras.optimizers.Adam(INIT_LR),
-                  loss='mean_absolute_error',
-                  metrics=['mean_absolute_error'])
-
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
 
     model.fit(training_generator, callbacks=get_callbacks(), epochs=EPOCHS, validation_data=test_generator)
 
@@ -69,13 +67,11 @@ if __name__ == '__main__':
     parser.add_argument("--azimuth_resolution", type=int, default=0,
                         help="Angle resolution for azimuth")
 
-
     parser_args = parser.parse_args()
     df = pd.read_csv(PATH_DATASET)
 
+    df['labels'] = (df['labels'] - df['joint2'])
     df['labels'] = (df['azimuth'] + 90)
-
-    df['labels'] = (df['labels'] - 0) / 180
 
     if parser_args.azimuth_resolution:
         df['labels'] = df['labels'] // parser_args.azimuth_resolution

@@ -7,10 +7,16 @@ import sys, os
 from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter
 import scipy.io.wavfile
 import numpy as np
-from ml.CONFIG import *
-import pickle
 from tqdm import tqdm
 import multiprocessing
+
+import os,sys,inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
+from CONFIG import *
+import pickle
+
 
 COLUMNS_ANGLES = ['index', 'timestamp', 'azimuth', 'elevation', 'vergence']
 COLUMNS_JOINTS = ['index', 'timestamp', 'joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5']
