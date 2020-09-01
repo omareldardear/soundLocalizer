@@ -149,7 +149,9 @@ def process_subject(path_subject, subject_id):
         start_timestamp = tmp.split('.wav')[0].split('_')[0]
         stop_timestamp = tmp.split('.wav')[0].split('_')[-1]
 
-        index_angle = index
+        df_tmp_angles = df_head_angles[df_head_angles['timestamp'] >= int(float(stop_timestamp))]
+
+        index_angle = abs(df_tmp_angles['timestamp'] - float(stop_timestamp)).idxmin()
         index_joint = abs(df_head_joints['timestamp'] - float(start_timestamp)).idxmin()
 
         data_angle = df_head_angles.iloc[[index_angle], 1:3]
