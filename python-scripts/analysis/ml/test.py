@@ -1,4 +1,8 @@
 import pandas as pd
+import os,sys,inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
 from CONFIG import *
 from models import *
 from dataGenerator import DataGenerator
@@ -38,7 +42,7 @@ def main(df_input):
 
 
     # Load the previously saved weights
-    latest = '/tmp/training_2/cp-0010.ckpt'
+    latest = '/tmp/training_2/cp-0020.ckpt'
     model.load_weights(latest)
 
 

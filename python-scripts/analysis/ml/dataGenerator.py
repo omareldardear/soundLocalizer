@@ -107,16 +107,22 @@ class DataGenerator(tf.keras.utils.Sequence):
                     input_x = np.expand_dims(input_x, axis=-1)
 
                 elif self.features == 'gammagram':
-                    twin = 0.08
-                    thop = twin / 2
-                    channels = 64
-                    fmin = 20
-                    signal = signal.mean(1)
+                    filename = os.path.join(self.path_data, ID.split('.wav')[0])
 
-                    signal1 = fft_gtgram(signal1, fs, twin, thop, channels, fmin)
-                    signal2 = fft_gtgram(signal2, fs, twin, thop, channels, fmin)
+                    if os.path.exists(filename):
+                        input_x = pickle.load(open(filename, 'rb'))
+                    else:
 
-                    input_x = np.stack((signal1, signal2), axis=-1)
+                        twin = 0.08
+                        thop = twin / 2
+                        channels = 64
+                        fmin = 20
+
+                        signal1 = fft_gtgram(signal1, fs, twin, thop, channels, fmin)
+                        signal2 = fft_gtgram(signal2, fs, twin, thop, channels, fmin)
+
+                        input_x = np.stack((signal1, signal2), axis=-1)
+                        pickle.dump(input_x, open(filename, "wb"))
 
 
 
@@ -261,9 +267,9 @@ class DataGenerator_headPose(tf.keras.utils.Sequence):
             X[i,] = input_x
 
             # Store head position
-            X_head[i,] = np.array([self.df[self.df['audio_filename'] == ID]['joint0'].values, self.df[self.df['audio_filename'] == ID]['joint2'].values])
+            X_head[i,] = np.array([self.df[self.df['audio_filename'] == ID]['joint2'].values])
 
             # Store class
-            y[i] = self.labels[ID]
+            y[i] =  self.labels[ID]
 
-        return X, X_head, y
+        return X, X_head, tf.keras.utils.to_categorical(y, num_classes=self.n_classes)

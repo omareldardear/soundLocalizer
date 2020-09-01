@@ -31,11 +31,17 @@ def main(df_input):
               'resample': RESAMPLING_F,
               'shuffle': True}
 
+    params_test = {'dim': INPUT_SHAPE,
+              'batch_size': 16,
+              'n_channels': NB_CHANNELS,
+              'resample': RESAMPLING_F,
+              'shuffle': True}
+
     # Define train and test generators
     df_train, df_test = get_datasets(df_input, TEST_SUBJECTS)
 
     training_generator = DataGenerator(df_train, PATH_DATA, FEATURE, output_shape, **params)
-    test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params)
+    test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params_test)
 
     # Define the model
     model = get_model_cnn(output_shape)
@@ -70,7 +76,6 @@ if __name__ == '__main__':
     parser_args = parser.parse_args()
     df = pd.read_csv(PATH_DATASET)
 
-    df['labels'] = (df['labels'] - df['joint2'])
     df['labels'] = (df['azimuth'] + 90)
 
     if parser_args.azimuth_resolution:

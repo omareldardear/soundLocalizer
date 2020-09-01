@@ -136,7 +136,7 @@ def process_subject(path_subject, subject_id):
     df_head_angles = pd.read_csv(angles_filename, sep=' ', names=COLUMNS_ANGLES)
     df_head_joints = pd.read_csv(head_state_filename, sep=' ', names=COLUMNS_JOINTS)
 
-    # Drop unnessary columns
+    # Drop unnecessary columns
     df_head_angles = df_head_angles.drop(['index', 'vergence'], axis=1)
     df_head_joints = df_head_joints.drop(['index'], axis=1)
 
