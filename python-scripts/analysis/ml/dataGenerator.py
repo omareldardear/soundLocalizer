@@ -21,7 +21,7 @@ class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
 
     def __init__(self, dataFrame, data_directory, features, num_classe, batch_size=32, dim=(32, 32, 32), n_channels=1,
-                 resample=0, shuffle=True,):
+                 resample=0, shuffle=True, ):
 
         'Initialization'
         self.df = dataFrame
@@ -103,7 +103,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                     input_x = np.expand_dims(gcc, axis=-1)
 
                 elif self.features == 'melspec':
-                    input_x = librosa.feature.melspectrogram(signal1, fs)
+                    input_x = librosa.feature.melspectrogram(signal1.astype(float), fs)
                     input_x = np.expand_dims(input_x, axis=-1)
 
                 elif self.features == 'gammagram':
@@ -148,7 +148,7 @@ class DataGenerator_headPose(tf.keras.utils.Sequence):
     'Generates data for Keras'
 
     def __init__(self, dataFrame, data_directory, features, num_classe, batch_size=32, dim=(32, 32, 32), n_channels=1,
-                 resample=0, shuffle=True):
+                 resample=0, shuffle=True, reg=False):
 
         'Initialization'
         self.df = dataFrame
@@ -165,6 +165,7 @@ class DataGenerator_headPose(tf.keras.utils.Sequence):
         self.path_data = data_directory
 
         self.max_tau = DISTANCE_MIC / 343.2
+        self.reg = reg
 
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -200,7 +201,7 @@ class DataGenerator_headPose(tf.keras.utils.Sequence):
         'Generates data containing batch_size samples'  # X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty((self.batch_size, *self.dim, self.n_channels), dtype=np.float)
-        X_head = np.empty((self.batch_size, 2, 1), dtype=np.float)
+        X_head = np.empty((self.batch_size, 1, 1), dtype=np.float)
         y = np.empty(self.batch_size, dtype=np.float)
 
         # Generate data
@@ -246,7 +247,7 @@ class DataGenerator_headPose(tf.keras.utils.Sequence):
                         twin = 0.08
                         thop = twin / 2
                         channels = 64
-                        fmin = 20
+                        fmin = 10
 
                         signal1 = fft_gtgram(signal1, fs, twin, thop, channels, fmin)
                         signal2 = fft_gtgram(signal2, fs, twin, thop, channels, fmin)
@@ -270,6 +271,9 @@ class DataGenerator_headPose(tf.keras.utils.Sequence):
             X_head[i,] = np.array([self.df[self.df['audio_filename'] == ID]['joint2'].values])
 
             # Store class
-            y[i] =  self.labels[ID]
+            y[i] = self.labels[ID]
 
-        return X, X_head, tf.keras.utils.to_categorical(y, num_classes=self.n_classes)
+        if self.reg:
+            return X, X_head, y
+        else:
+            return X, X_head, tf.keras.utils.to_categorical(y, num_classes=self.n_classes)

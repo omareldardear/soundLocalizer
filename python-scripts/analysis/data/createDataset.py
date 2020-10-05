@@ -40,7 +40,7 @@ def create_chunk_audio(df, output_dir, length_audio):
 
     for index, item in tqdm(df.iterrows()):
         audio_filename = item['audio_filename']
-        sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=length_audio)
+        sample_rate, chunks_channel1, chunks_channel2 = split_audio_chunks(audio_filename, size_chunks=length_audio, overlap=CHUNCK_OVERLAP)
 
         for j, (signal1, signal2) in enumerate(zip(chunks_channel1, chunks_channel2)):
             filename = str(index) + '-' + str(j) + '_' + str(item['subject_id']) + '.wav'

@@ -92,9 +92,12 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
     chunk_signal1 = []
     chunk_signal2 = []
 
-    while (index_start + length_chunk) < (fs * 3.5):
-        chunk_signal1.append(signal1[index_start:index_start + length_chunk])
-        chunk_signal2.append(signal2[index_start:index_start + length_chunk])
+    while (index_start + length_chunk) < len(signal1)/2:
+
+        stop_index = index_start + length_chunk
+
+        chunk_signal1.append(signal1[index_start:stop_index])
+        chunk_signal2.append(signal2[index_start:stop_index])
 
         index_start += overlap
 

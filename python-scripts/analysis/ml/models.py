@@ -29,8 +29,11 @@ def get_model_cnn(output_shape):
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
         tf.keras.layers.MaxPooling2D((2, 2)),
 
+
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(256, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
+        tf.keras.layers.Dense(128, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
+        tf.keras.layers.Dense(32, activation="relu", kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4)),
+        tf.keras.layers.Dropout(rate=0.4),
         tf.keras.layers.Dense(output_shape, activation="softmax")
     ])
 
@@ -155,36 +158,45 @@ def get_model_head_cnn(input_shape, output_dim=11, reg=False):
     # Model for audio
     inputs = tf.keras.layers.Input(input_shape)
 
-    x = tf.keras.layers.Conv2D(name='conv1', filters=32, kernel_size=(3, 3), activation='relu', padding='same',
+    x = tf.keras.layers.Conv2D( filters=32, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(inputs)
-    x = tf.keras.layers.Conv2D(name='conv2', filters=32, kernel_size=(3, 3), activation='relu', padding='same',
-                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
-
-    x = tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu', padding='same',
+    x = tf.keras.layers.Conv2D( filters=32, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+    x = tf.keras.layers.Dropout(0.4) (x)
 
-    x = tf.keras.layers.Conv2D(filters=64, kernel_size=(5, 5), activation='relu', padding='same',
+
+    x = tf.keras.layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
-
-    x = tf.keras.layers.Conv2D(filters=64, kernel_size=(5, 5), activation='relu', padding='same',
+    x = tf.keras.layers.Conv2D( filters=64, kernel_size=(3, 3), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+    x = tf.keras.layers.Dropout(0.4) (x)
+
 
     x = tf.keras.layers.Conv2D(filters=128, kernel_size=(5, 5), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
-
     x = tf.keras.layers.Conv2D(filters=128, kernel_size=(5, 5), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+    x = tf.keras.layers.Dropout(0.4) (x)
+
+
+    # x = tf.keras.layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu', padding='same',
+    #                            kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
+    # x = tf.keras.layers.Conv2D(filters=256, kernel_size=(5, 5), activation='relu', padding='same',
+    #                            kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
+    # x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+    # x = tf.keras.layers.Dropout(0.4) (x)
+
 
     x = tf.keras.layers.Flatten()(x)
 
     x = tf.keras.Model(inputs=inputs, outputs=x)
 
     # Model for head position
-    input_head = tf.keras.layers.Input((2, 1))
-    y = squeezed = tf.keras.layers.Lambda(lambda x: tf.keras.backend.squeeze(x, 2))(input_head)
+    input_head = tf.keras.layers.Input((1, 1))
+    y = tf.keras.layers.Lambda(lambda x: tf.keras.backend.squeeze(x, 2))(input_head)
 
     y = tf.keras.Model(inputs=input_head, outputs=y)
 
@@ -193,7 +205,11 @@ def get_model_head_cnn(input_shape, output_dim=11, reg=False):
 
     # apply a FC layer and then a regression prediction on the
     # combined outputs
-    z = tf.keras.layers.Dense(512, activation='relu')(combined)
+    z = tf.keras.layers.Dense(128, activation='relu')(combined)
+    z = tf.keras.layers.Dropout(0.4) (z)
+    z = tf.keras.layers.Dense(32, activation='relu')(z)
+    z = tf.keras.layers.Dropout(0.4) (z)
+
 
     if reg:
         output = tf.keras.layers.Dense(1, activation="linear")(z)
