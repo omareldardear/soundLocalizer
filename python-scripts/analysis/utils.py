@@ -7,13 +7,15 @@ import contextlib
 import wave
 import librosa
 import numpy as np
-import math
 
-import os,sys,inspect
+import os, sys, inspect
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.insert(0,parentdir)
-from CONFIG import *
+sys.path.insert(0, parentdir)
+from analysis.CONFIG import *
+from analysis.gammatone.fftweight import fft_gtgram
+from analysis.gammatone.gtgram import gtgram
 
 
 #########################################################################################
@@ -21,11 +23,13 @@ from CONFIG import *
 #########################################################################################
 
 
+# noinspection PyTupleAssignmentBalance
 def butter_highpass(cutoff, fs, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='high', analog=False)
     return b, a
+
 
 def butter_highpass_filter(data, cutoff, fs, order=5):
     b, a = butter_highpass(cutoff, fs, order=order)
@@ -33,24 +37,26 @@ def butter_highpass_filter(data, cutoff, fs, order=5):
     return y
 
 
+# noinspection PyTupleAssignmentBalance
 def butter_lowpass(cutoff, fs, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
+
 def butter_lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = lfilter(b, a, data)
     return y
 
+
 def get_power(signal):
     power = 0
     for i in signal:
-        power += i**2
+        power += i ** 2
 
     return power / len(signal)
-
 
 
 def FilteredSignal(signal, fs, cutoff):
@@ -73,26 +79,25 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
 
 
-
 def padarray(A, size):
     t = size - len(A)
     return np.pad(A, pad_width=(0, t), mode='constant')
 
 
-def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
-    fs, signal = wavfile.read(audio_filename, "wb", )
+def split_audio_chunks(audio_filename, size_chunks=500, overlap=500):
+    fs, signal = wavfile.read(audio_filename)
 
     signal1 = signal[:, 0]
     signal2 = signal[:, 1]
 
     length_chunk = int((fs * size_chunks) / 1000)
-    overlap =  int((fs * overlap) / 1000)
+    overlap = int((fs * overlap) / 1000)
 
     index_start = 0
     chunk_signal1 = []
     chunk_signal2 = []
 
-    while (index_start + length_chunk) < (fs * 3.5):
+    while (index_start + length_chunk) < len(signal1):
         chunk_signal1.append(signal1[index_start:index_start + length_chunk])
         chunk_signal2.append(signal2[index_start:index_start + length_chunk])
 
@@ -107,10 +112,28 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=100):
     return fs, chunk_signal1, chunk_signal2
 
 
-
 #########################################################################################
 # FEATURES EXTRACTIONS FUNCTIONS                                                        #
 #########################################################################################
+
+def get_fft_gram(signal,  fs, time_window=0.08, channels=64, freq_min=20):
+    """
+    Calculate a spectrogram-like time frequency magnitude array based on
+    gammatone subband filters.
+    """
+
+    signal1 = signal[:, 0]
+    signal2 = signal[:, 1]
+
+    thop = time_window / 2
+
+    signal1 = fft_gtgram(signal1, fs, time_window, thop, channels, freq_min)
+    signal2 = fft_gtgram(signal2, fs, time_window, thop, channels, freq_min)
+
+    fft_gram = np.stack((signal1, signal2), axis=-1)
+
+    return fft_gram
+
 
 def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
     """
@@ -125,11 +148,11 @@ def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):
     return mfcc_feat
 
 
-def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=1, n_delay=1):
-    '''
+def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=16, n_delay=18):
+    """
     This function computes the offset between the signal sig and the reference signal refsig
     using the Generalized Cross Correlation - Phase Transform (GCC-PHAT)method.
-    '''
+    """
 
     # make sure the length for the FFT is larger or equal than len(sig) + len(refsig)
     n = sig.shape[0] + refsig.shape[0]
@@ -140,19 +163,29 @@ def gcc_phat(sig, refsig, fs=1, max_tau=0.00040, interp=1, n_delay=1):
     R = SIG * np.conj(REFSIG)
 
     cc = np.fft.irfft(R / np.abs(R), n=(interp * n))
-
     max_shift = int(n // 2 + 1)
+
+    if max_tau:
+        max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
 
     cc = np.concatenate((cc[-max_shift:], cc[:max_shift]))
 
+    ind = np.argpartition(cc, -n_delay)[-n_delay:]
+
     delay = []
+    for i in ind:
+        # find max cross correlation index
+        shift = i - max_shift
+
+        tau = shift / float(interp * fs)
+        delay.append(tau)
 
     # find max cross correlation index
     shift = np.argmax(cc) - max_shift
 
     tau = shift / float(interp * fs)
 
-    return [tau], cc
+    return delay, cc
 
 
 def concat_fourier_transform(sig1, sig2, n=512):
@@ -280,8 +313,6 @@ def getCoeffs(f_c, B, T):
 #########################################################################################
 
 def filter_voice(signal, sample_rate, mode=3):
-
-
     signal = butter_bandpass_filter(signal, 1500, 5000, sample_rate, 1)
     signal = np.array(signal, dtype=np.int16)
 
@@ -348,7 +379,7 @@ def frame_generator(frame_duration_ms, audio, sample_rate):
     offset = 0
     timestamp = 0.0
     duration = (float(n) / sample_rate) / 2.0
-    while offset + n < len(audio) -1:
+    while offset + n < len(audio) - 1:
         yield Frame(audio[offset:offset + n], timestamp, duration)
         timestamp += duration
         offset += n
@@ -423,6 +454,3 @@ def vad_collector(sample_rate, frame_duration_ms,
     # yield it.
     if voiced_frames:
         yield b''.join([f.bytes for f in voiced_frames])
-
-
-
