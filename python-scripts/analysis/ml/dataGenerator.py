@@ -21,7 +21,11 @@ class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
 
     def __init__(self, dataFrame, data_directory, features, num_classe, batch_size=32, dim=(32, 32, 32), n_channels=1,
+<<<<<<< HEAD
                  resample=0, shuffle=True, reg=False):
+=======
+                 resample=0, shuffle=True, ):
+>>>>>>> ed5a0c62574454a15e91bae46781277cc2641375
 
         'Initialization'
         self.df = dataFrame
@@ -105,9 +109,14 @@ class DataGenerator(tf.keras.utils.Sequence):
                     input_x = np.expand_dims(gcc, axis=-1)
 
                 elif self.features == 'melspec':
+<<<<<<< HEAD
                     input_1 = librosa.feature.melspectrogram(signal1.astype(float), fs)
                     input_2 = librosa.feature.melspectrogram(signal2.astype(float), fs)
                     input_x = np.stack((input_1, input_2), axis=-1)
+=======
+                    input_x = librosa.feature.melspectrogram(signal1.astype(float), fs)
+                    input_x = np.expand_dims(input_x, axis=-1)
+>>>>>>> ed5a0c62574454a15e91bae46781277cc2641375
 
                 elif self.features == 'gammagram':
                     filename = os.path.join(self.path_data, ID.split('.wav')[0])
@@ -159,6 +168,7 @@ class DataGeneratorHeadPose(tf.keras.utils.Sequence):
 
         self.reg = reg
         self.max_tau = DISTANCE_MIC / 343.2
+        self.reg = reg
 
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -194,8 +204,13 @@ class DataGeneratorHeadPose(tf.keras.utils.Sequence):
         'Generates data containing batch_size samples'  # X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty((self.batch_size, *self.dim, self.n_channels), dtype=np.float)
+<<<<<<< HEAD
         X_head = np.empty((self.batch_size, 1, 1), dtype=np.float32)
         y = np.empty(self.batch_size, dtype=np.float32)
+=======
+        X_head = np.empty((self.batch_size, 1, 1), dtype=np.float)
+        y = np.empty(self.batch_size, dtype=np.float)
+>>>>>>> ed5a0c62574454a15e91bae46781277cc2641375
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
@@ -237,7 +252,19 @@ class DataGeneratorHeadPose(tf.keras.utils.Sequence):
                         input_x = pickle.load(open(filename, 'rb'))
                     else:
 
+<<<<<<< HEAD
                         input_x = get_fft_gram(signal, fs)
+=======
+                        twin = 0.08
+                        thop = twin / 2
+                        channels = 64
+                        fmin = 10
+
+                        signal1 = fft_gtgram(signal1, fs, twin, thop, channels, fmin)
+                        signal2 = fft_gtgram(signal2, fs, twin, thop, channels, fmin)
+
+                        input_x = np.stack((signal1, signal2), axis=-1)
+>>>>>>> ed5a0c62574454a15e91bae46781277cc2641375
                         pickle.dump(input_x, open(filename, "wb"))
 
                 else:

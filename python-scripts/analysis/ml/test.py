@@ -7,6 +7,7 @@ from CONFIG import *
 from models import *
 from dataGenerator import DataGenerator
 import argparse
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 
@@ -52,7 +53,7 @@ def main(df_input):
     test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params)
 
     # Re-evaluate the model
-    los, acc = model.evaluate(test_generator, verbose=2)
+    acc = model.evaluate(test_generator, verbose=2)
     print("Restored model, accuracy: {:5.2f%".format( acc))
 
     return 1
