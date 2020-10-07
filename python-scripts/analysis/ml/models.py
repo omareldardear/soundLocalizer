@@ -49,6 +49,7 @@ def get_model_cnn(input_shape, output_shape, regression=False):
         tf.keras.layers.Dropout(rate=0.4),
         tf.keras.layers.Dense(output_shape, activation=activation_output)
 
+
     ])
 
     return model
@@ -283,8 +284,13 @@ def get_model_head_cnn(input_shape, output_dim=11, reg=False):
     x = tf.keras.layers.Conv2D(filters=128, kernel_size=(5, 5), activation='relu', padding='same',
                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
-    x = tf.keras.layers.Dropout(0.4) (x)
 
+
+
+    x = tf.keras.layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
+    x = tf.keras.layers.Conv2D(filters=256, kernel_size=(5, 5), activation='relu', padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l1_l2(l1=1e-5, l2=1e-4))(x)
 
 
 
@@ -303,7 +309,6 @@ def get_model_head_cnn(input_shape, output_dim=11, reg=False):
     # apply a FC layer and then a regression prediction on the
     # combined outputs
     z = tf.keras.layers.Dense(128, activation='relu')(combined)
-    z = tf.keras.layers.Dropout(0.4) (z)
     z = tf.keras.layers.Dense(32, activation='relu')(z)
     z = tf.keras.layers.Dropout(0.4) (z)
 

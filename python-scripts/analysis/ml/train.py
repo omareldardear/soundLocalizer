@@ -42,11 +42,11 @@ def main(df_input, args):
     # Define train and test generators
     df_train, df_test = get_datasets(df_input, TEST_SUBJECTS)
 
-    training_generator = DataGenerator_headPose(df_train, PATH_DATA, FEATURE, output_shape, **params)
-    test_generator = DataGenerator_headPose(df_test, PATH_DATA, FEATURE, output_shape, **params_test)
+    training_generator = DataGenerator(df_train, PATH_DATA, FEATURE, output_shape, **params)
+    test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params_test)
 
     # Define the model
-    model = get_model_head_cnn((*INPUT_SHAPE, NB_CHANNELS), output_shape, reg=args.regression)
+    model = get_model_cnn(output_shape, reg=args.regression)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
