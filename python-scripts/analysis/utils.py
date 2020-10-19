@@ -98,7 +98,7 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=500):
     chunk_signal2 = []
 
 
-    while (index_start + length_chunk) < len(signal1)/2:
+    while (index_start + length_chunk) < len(signal1):
 
         stop_index = index_start + length_chunk
 
@@ -116,11 +116,18 @@ def split_audio_chunks(audio_filename, size_chunks=500, overlap=500):
     return fs, chunk_signal1, chunk_signal2
 
 
+def pitch_augment(data, sampling_rate, pitch_factor):
+    signal1 = librosa.effects.pitch_shift(data[:, 0].astype(float), sampling_rate, pitch_factor)
+    signal2 = librosa.effects.pitch_shift(data[:, 1].astype(float), sampling_rate, pitch_factor)
+
+    data = np.stack((signal1, signal2), axis=1)
+
+    return data
 #########################################################################################
 # FEATURES EXTRACTIONS FUNCTIONS                                                        #
 #########################################################################################
 
-def get_fft_gram(signal,  fs, time_window=0.08, channels=64, freq_min=20):
+def get_fft_gram(signal,  fs, time_window=0.08, channels=1024, freq_min=20):
     """
     Calculate a spectrogram-like time frequency magnitude array based on
     gammatone subband filters.
@@ -131,12 +138,13 @@ def get_fft_gram(signal,  fs, time_window=0.08, channels=64, freq_min=20):
 
     thop = time_window / 2
 
-    signal1 = fft_gtgram(signal1, fs, time_window, thop, channels, freq_min)
-    signal2 = fft_gtgram(signal2, fs, time_window, thop, channels, freq_min)
+    fft_gram1 = fft_gtgram(signal1, fs, time_window, thop, channels, freq_min)
+    fft_gram2 = fft_gtgram(signal2, fs, time_window, thop, channels, freq_min)
 
-    fft_gram = np.stack((signal1, signal2), axis=-1)
+    fft_gram1 = np.flipud(20 * np.log10(fft_gram1))
+    fft_gram2 = np.flipud(20 * np.log10(fft_gram2))
 
-    return fft_gram
+    return fft_gram1, fft_gram2
 
 
 def get_MFCC(sample, sample_rate=16000, nb_mfcc_features=52):

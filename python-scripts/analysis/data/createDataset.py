@@ -4,7 +4,7 @@ import librosa
 import pandas as pd
 import argparse
 import sys, os
-from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter
+from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter, pitch_augment
 import scipy.io.wavfile
 import numpy as np
 from tqdm import tqdm
@@ -16,7 +16,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 from CONFIG import *
 import pickle
-
+import random
 
 COLUMNS_ANGLES = ['index', 'timestamp', 'azimuth', 'elevation', 'vergence']
 COLUMNS_JOINTS = ['index', 'timestamp', 'joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5']
@@ -44,7 +44,9 @@ def create_chunk_audio(df, output_dir, length_audio):
 
         for j, (signal1, signal2) in enumerate(zip(chunks_channel1, chunks_channel2)):
             filename = str(index) + '-' + str(j) + '_' + str(item['subject_id']) + '.wav'
+            filename_au = str(index) + '-' + str(j) + '_aug' + str(item['subject_id']) + '.wav'
             filename_write = os.path.join(output_dir, filename)
+            filename_au_write = os.path.join(output_dir, filename_au)
 
             data = np.stack((signal1, signal2), axis=1)
 
@@ -54,11 +56,18 @@ def create_chunk_audio(df, output_dir, length_audio):
             else:
                 new_df = new_df.append(item, ignore_index=True)
                 new_df.at[i, 'audio_filename'] = filename
-
                 if not os.path.exists(filename_write):
                     scipy.io.wavfile.write(filename_write, sample_rate, data)
+                i += 1
+
+                data = pitch_augment(data, sample_rate, random.randint(1,4))
+                new_df = new_df.append(item, ignore_index=True)
+                new_df.at[i, 'audio_filename'] = filename_au
+                if not os.path.exists(filename_au_write):
+                    scipy.io.wavfile.write(filename_au_write, sample_rate, data)
 
                 i += 1
+
 
     new_df.to_csv("chunck_dataset-{}.csv".format(length_audio), index=False)
 

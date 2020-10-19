@@ -1,5 +1,4 @@
 import pandas as pd
-from utils_ml import *
 
 import os,sys,inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -7,9 +6,10 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 from CONFIG import *
 
-from models import *
+from ml.utils_ml import *
+from ml.models import *
 import tensorflow as tf
-from dataGenerator import DataGenerator, DataGenerator_headPose
+from ml.dataGenerator import DataGenerator, DataGeneratorHeadPose
 import argparse
 from sklearn import preprocessing
 
@@ -46,27 +46,28 @@ def main(df_input, args):
     test_generator = DataGenerator(df_test, PATH_DATA, FEATURE, output_shape, **params_test)
 
     # Define the model
-    model = get_model_cnn(output_shape, reg=args.regression)
+    model = get_model_cnn((*INPUT_SHAPE, NB_CHANNELS), output_shape, regression=args.regression)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
-        decay_steps=1500,
-        decay_rate=0.94,
+        decay_steps=2000,
+        decay_rate=0.95,
+        staircase=True,
         name="lr_decay"
     )
 
-    optimizer_obj = tf.keras.optimizers.Adam(INIT_LR)
+    optimizer_obj = tf.keras.optimizers.Adam(lr_schedule)
 
     if args.regression:
         model.compile(optimizer=optimizer_obj,
                       loss='mse',
-                      metrics=[tf.keras.metrics.RootMeanSquaredError(name='rmse'), 'mae'])
+                      metrics=['mse', 'mae'])
     else:
         model.compile(optimizer=tf.keras.optimizers.Adam(lr_schedule),
-                      loss='categorical_crossentropy',
+                      loss="categorical_crossentropy",
                       metrics=['accuracy'])
 
-    model.fit(training_generator, callbacks=get_callbacks(m_patience=40), epochs=EPOCHS, validation_data=test_generator)
+    model.fit(training_generator, callbacks=get_callbacks(m_patience=5), epochs=EPOCHS, validation_data=test_generator)
 
     model.summary()
 
@@ -94,6 +95,6 @@ if __name__ == '__main__':
         df['labels'] = round(df['labels'], 2)
 
     elif parser_args.azimuth_resolution:
-        df['labels'] = df['labels'] // parser_args.azimuth_resolution
-
+        # df['labels'] = df['labels'] // parser_args.azimuth_resolution
+        df['labels'] = df['labels'].astype(int)
     main(df, parser_args)
