@@ -10,7 +10,7 @@ current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
-from utils import gcc_phat, butter_lowpass_filter, get_fft_gram
+from utils import gcc_phat, butter_lowpass_filter, get_fft_gram, normalize_audio
 from CONFIG import *
 
 import pickle
@@ -93,6 +93,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                 filename = os.path.join(self.path_data, ID)
 
                 fs, signal = wavfile.read(filename)
+                signal = normalize_audio(signal)
                 signal1 = signal[:, 0]
                 signal2 = signal[:, 1]
 

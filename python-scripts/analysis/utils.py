@@ -22,6 +22,17 @@ from analysis.gammatone.gtgram import gtgram
 # AUDIO PROCESSING FUNCTIONS                                                            #
 #########################################################################################
 
+def normalize_audio(audio):
+    first_channel = audio[:, 0]
+    second_channel = audio[:, 1]
+
+    first_audio = first_channel / np.max(np.abs(first_channel))
+    second_audio = second_channel / np.max(np.abs(second_channel))
+
+    norm_audio = np.stack((first_audio, second_audio), axis=1)
+
+    return norm_audio
+
 
 # noinspection PyTupleAssignmentBalance
 def butter_highpass(cutoff, fs, order=5):
