@@ -50,7 +50,7 @@ def main(df_input, args):
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         INIT_LR,
-        decay_steps=2000,
+        decay_steps=1000,
         decay_rate=0.95,
         staircase=True,
         name="lr_decay"
@@ -88,13 +88,13 @@ if __name__ == '__main__':
     parser_args = parser.parse_args()
     df = pd.read_csv(PATH_DATASET)
 
-    df['labels'] = (df['azimuth'] + 90)
+    # df['labels'] = (df['azimuth'] + 90)
 
     if  parser_args.regression:
-        df['labels'] = df['labels'] / 180
+        df['labels'] = (df['azimuth'] + 90 ) / 180
         df['labels'] = round(df['labels'], 2)
 
     elif parser_args.azimuth_resolution:
         # df['labels'] = df['labels'] // parser_args.azimuth_resolution
-        df['labels'] = df['labels'].astype(int)
+        df['labels'] = df['labels'].astype(float)
     main(df, parser_args)

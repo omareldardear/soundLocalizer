@@ -4,11 +4,16 @@ import librosa
 import pandas as pd
 import argparse
 import sys, os
+
+from scipy.io import wavfile
+
 from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter, pitch_augment
 import scipy.io.wavfile
 import numpy as np
 from tqdm import tqdm
 import multiprocessing
+
+
 
 import os,sys,inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -23,6 +28,41 @@ COLUMNS_JOINTS = ['index', 'timestamp', 'joint0', 'joint1', 'joint2', 'joint3', 
 COLUMNS_DATA = ['subject_id', 'audio_filename', 'azimuth', 'elevation', 'joint0', 'joint1', 'joint2', 'joint3',
                 'joint4', 'joint5']
 
+
+def data_augmentation(df, output_dir, min_count=50):
+
+    df_data = pd.DataFrame()
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    df_to_augment = df['azimuth'].value_counts().to_frame()
+    df_to_augment['count'] = df_to_augment['azimuth']
+    df_to_augment['angles'] = df_to_augment.index
+    df_to_augment = df_to_augment.query('count < @min_count')
+
+    for index, item in df_to_augment.iterrows():
+        df_angles = df.query(" azimuth == @item['angles']")
+        diff = min_count - df_angles.shape[0]
+        i = 0
+        while diff != i :
+            tmp = df_angles.sample()
+            filename = tmp['audio_filename'].values[0]
+            fs, data = wavfile.read(os.path.join(PATH_DATA, filename))
+
+
+            data_augmented = pitch_augment(data, fs, random.randint(1,5))
+            filename_write = "aug_{}".format(i) + filename
+
+            scipy.io.wavfile.write(os.path.join(output_dir, filename_write), fs, data_augmented.astype(np.int16))
+            tmp['audio_filename'] = filename_write
+            df_data = df_data.append(tmp)
+            i+=1
+
+
+    df_data.reset_index(drop=True, inplace=True)
+
+    return df_data
 
 def create_chunk_audio(df, output_dir, length_audio):
     """
@@ -60,19 +100,12 @@ def create_chunk_audio(df, output_dir, length_audio):
                     scipy.io.wavfile.write(filename_write, sample_rate, data)
                 i += 1
 
-                data = pitch_augment(data, sample_rate, random.randint(1,4))
-                new_df = new_df.append(item, ignore_index=True)
-                new_df.at[i, 'audio_filename'] = filename_au
-                if not os.path.exists(filename_au_write):
-                    scipy.io.wavfile.write(filename_au_write, sample_rate, data)
 
-                i += 1
 
 
     new_df.to_csv("chunck_dataset-{}.csv".format(length_audio), index=False)
 
     return df
-
 
 def create_mel_spectogram(filename):
     if not os.path.exists(filename.split('.wav')[0]):
@@ -114,8 +147,6 @@ def create_gammatone(filename):
 
     return True
 
-
-
 def create_gammatone_gcc(filename):
     """
     Create Gammatone filter bank with the GCC-PHAT and apply it to a wav file define by filename
@@ -135,7 +166,6 @@ def create_gammatone_gcc(filename):
         pickle.dump(gcc, open(pickle_filename, "wb"))
 
     return True
-
 
 def process_subject(path_subject, subject_id):
     audio_samples_list = glob.glob(os.path.join(path_subject, "2020*/*.wav"))
@@ -179,11 +209,9 @@ def process_subject(path_subject, subject_id):
 
     return df_data
 
-
 def _apply_df(args):
     df, func, kwargs = args
     return df.apply(func, **kwargs)
-
 
 def apply_by_multiprocessing(df, func, **kwargs):
     workers = kwargs.pop('workers')
@@ -253,12 +281,22 @@ if __name__ == '__main__':
 
     parser.add_argument("--gammatone", help="Enable gammatone filter processing", action="store_true")
 
+    parser.add_argument("--augment", help="Enable data augmentation", action="store_true")
+
+
     parser_args = parser.parse_args()
 
     if parser_args.time_window and parser_args.dataset:
         df = pd.read_csv(parser_args.dataset)
         output_dir = os.path.join(parser_args.save_path, f'dataset-{parser_args.time_window}')
         df = create_chunk_audio(df, output_dir, parser_args.time_window)
+
+    elif parser_args.augment:
+        df = pd.read_csv(parser_args.dataset)
+        output_dir = os.path.join(parser_args.save_path, f'dataset-augmented')
+
+        res = data_augmentation(df, output_dir)
+        res.to_csv("dataset_augmented.csv", index=False)
 
     elif parser_args.gammatone and parser_args.dataset:
         df = pd.read_csv(parser_args.dataset)
