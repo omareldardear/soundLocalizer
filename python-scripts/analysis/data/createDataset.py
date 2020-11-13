@@ -7,7 +7,7 @@ import sys, os
 
 from scipy.io import wavfile
 
-from utils import split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter, pitch_augment
+from utils import removeNoise, split_audio_chunks, filter_voice, ToolGammatoneFb, gcc_gammatoneFilter, butter_lowpass_filter, pitch_augment
 import scipy.io.wavfile
 import numpy as np
 from tqdm import tqdm
@@ -73,6 +73,10 @@ def create_chunk_audio(df, output_dir, length_audio):
     :return: the new dataset with all the chunks audio filename
     """
 
+    rate, data_noise = wavfile.read(PATH_NOISE)
+    data_noise = data_noise[:48000, 0]
+    data_noise = data_noise / 32768
+
     new_df = pd.DataFrame()
     i = 0
     if not os.path.exists(output_dir):
@@ -84,14 +88,20 @@ def create_chunk_audio(df, output_dir, length_audio):
 
         for j, (signal1, signal2) in enumerate(zip(chunks_channel1, chunks_channel2)):
             filename = str(index) + '-' + str(j) + '_' + str(item['subject_id']) + '.wav'
-            filename_au = str(index) + '-' + str(j) + '_aug' + str(item['subject_id']) + '.wav'
             filename_write = os.path.join(output_dir, filename)
-            filename_au_write = os.path.join(output_dir, filename_au)
+
+            signal1 = signal1.astype(float) / 32768
+            signal2 = signal2.astype(float) / 32768
+
+            signal1 = removeNoise(audio_clip=signal1, noise_clip=data_noise)
+            signal2 = removeNoise(audio_clip=signal2, noise_clip=data_noise)
 
             data = np.stack((signal1, signal2), axis=1)
 
             if not filter_voice(signal1, sample_rate):
                 print(f"{filename} not containing voice")
+                scipy.io.wavfile.write("/tmp/no_voice/" + filename, sample_rate, data)
+
 
             else:
                 new_df = new_df.append(item, ignore_index=True)

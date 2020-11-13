@@ -95,6 +95,7 @@ if __name__ == '__main__':
         df['labels'] = round(df['labels'], 2)
 
     elif parser_args.azimuth_resolution:
-        # df['labels'] = df['labels'] // parser_args.azimuth_resolution
+        df['labels'] = (df['azimuth'] + 90)
+        df['labels'] = df['labels'] // parser_args.azimuth_resolution
         df['labels'] = df['labels'].astype(float)
     main(df, parser_args)
