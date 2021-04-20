@@ -135,9 +135,11 @@ class AudioRecorderModule(yarp.RFModule):
             self.record = False
             self.stop_ts = time.time()
             self.save_recording()
-
+            filePath = f'{self.saving_path}/{self.date_path}/'
+            fileName = f'{self.start_ts}_{self.stop_ts}.wav'
             reply.addString("ok")
-
+            reply.addString(filePath)
+            reply.addString(fileName)
         return True
 
     def getPeriod(self):
