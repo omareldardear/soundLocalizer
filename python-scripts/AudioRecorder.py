@@ -30,13 +30,13 @@ class AudioRecorderModule(yarp.RFModule):
         self.attach(self.handle_port)
 
         # Define vars to receive an image
-        self.audio_in_port = yarp.Port()
+        self.audio_in_port = yarp.BufferedPortSound()
 
         self.module_name = None
 
         self.saving_path = None
 
-        self.sound = yarp.Sound()
+        self.sound = None
 
         self.start_ts = -1
         self.date_path = time.strftime("%Y%m%d-%H%M%S")
@@ -135,9 +135,11 @@ class AudioRecorderModule(yarp.RFModule):
             self.record = False
             self.stop_ts = time.time()
             self.save_recording()
-
+            filePath = f'{self.saving_path}/{self.date_path}/'
+            fileName = f'{self.start_ts}_{self.stop_ts}.wav'
             reply.addString("ok")
-
+            reply.addString(filePath)
+            reply.addString(fileName)
         return True
 
     def getPeriod(self):
@@ -148,19 +150,25 @@ class AudioRecorderModule(yarp.RFModule):
         """
         return 0.05
 
-    def updateModule(self):
-
-        if self.record:
-
-            self.audio_in_port.read(self.sound)
+    def record_audio(self):
+        self.sound = self.audio_in_port.read(False)
+        if self.sound:
 
             chunk = np.zeros((self.sound.getChannels(), self.sound.getSamples()), dtype=np.float32)
-
+            self.nb_samples_received += self.sound.getSamples()
             for c in range(self.sound.getChannels()):
                 for i in range(self.sound.getSamples()):
                     chunk[c][i] = self.sound.get(i, c) / 32768.0
 
             self.audio.append(chunk)
+
+            return True
+        return False
+
+    def updateModule(self):
+
+        if self.record:
+            self.record_audio()
         return True
 
     def save_recording(self):
